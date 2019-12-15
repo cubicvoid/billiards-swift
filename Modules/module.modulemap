@@ -1,0 +1,10 @@
+module CGmp [system] {
+  header "/usr/local/include/gmp.h"
+  link "gmp"
+  export *
+}
+module Clibbsd [system] {
+  header "bsd.h"
+  link "bsd"
+  export *
+}

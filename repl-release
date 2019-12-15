@@ -1,0 +1,7 @@
+#!/bin/sh
+
+swift \
+  -I .build/release \
+  -I ../Modules \
+  -L .build/release \
+  -lBilliardLib

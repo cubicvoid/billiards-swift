@@ -1,0 +1,6 @@
+Data/
+.build
+Package.resolved
+
+# vim swap files
+.*.swp

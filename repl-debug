@@ -1,0 +1,7 @@
+#!/bin/sh
+
+swift \
+  -I .build/debug \
+  -I ../Modules \
+  -L .build/debug \
+  -lBilliardLib
