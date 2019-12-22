@@ -85,18 +85,19 @@ class ApexSetIndex {
       includingPropertiesForKeys:[URLResourceKey.isDirectoryKey])
     var results = [String: ApexSet.Metadata]()
     for url in urls {
-      let resourceValues = try url.resourceValues(forKeys: [URLResourceKey.isDirectoryKey])
-      let isDirectory = resourceValues.isDirectory!
-      if !isDirectory {
-        // Apex sets are stored in directories under the root
-        continue
-      }
       let name = url.lastPathComponent
-      guard let metadata = try? loadMetadata(name: name)
-      else {
-        continue
+      do {
+        let resourceValues = try url.resourceValues(forKeys: [URLResourceKey.isDirectoryKey])
+        let isDirectory = resourceValues.isDirectory!
+        if !isDirectory {
+          // Apex sets are stored in directories under the root
+          continue
+        }
+        let metadata = try loadMetadata(name: name)
+        results[name] = metadata
+      } catch {
+        logger.warning("Couldn't load index data for apex set \"\(name)\": \(error)")
       }
-      results[name] = metadata
     }
     return results
   }

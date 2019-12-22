@@ -3,15 +3,17 @@ import BilliardLib
 import Dispatch
 import Logging
 
-let logger = Logger(label: "me.faec.billiards")
-let path = FileManager.default.currentDirectoryPath
-let dataURL = URL(fileURLWithPath: path).appendingPathComponent("data")
-let apexSetIndex = try! ApexSetIndex(
-  rootURL: dataURL.appendingPathComponent("apexSet"),
-  logger: logger)
 
-let apexSet = RandomApexesWithGridDensity(5000000000, count: 100000)
-try! apexSetIndex.save(apexSet, name: "test-100000")
+//let apexSet = RandomApexesWithGridDensity(5000000000, count: 100000)
+//try! apexSetIndex.save(apexSet, name: "test-100000")
+
+let logger = Logger(label: "me.faec.billiards")
+let commands = Commands(logger: logger)
+commands.run(Array(CommandLine.arguments[1...]))
+
+
+//apexSetList()
+
 //print(path)
 //let apexSetIndex = ApexSetIndex("")
 
