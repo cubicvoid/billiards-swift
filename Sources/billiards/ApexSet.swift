@@ -1,5 +1,6 @@
 import Foundation
 import BilliardLib
+import Logging
 
 class Apex: Codable {
   let coords: Vec2<GmpRational>
@@ -16,10 +17,13 @@ class ApexSet: Codable {
   public let metadata: Metadata
   
   public class Metadata: Codable {
-    public let count: Int? = nil
-    public let density: UInt? = nil
+    public let count: Int?
+    public let density: UInt?
 
-    public init() { }
+    public init(count: Int?, density: UInt? = nil) {
+      self.count = count
+      self.density = density
+      }
   }
 
   public init(elements: [Apex], metadata: Metadata) {
@@ -31,14 +35,17 @@ class ApexSet: Codable {
 // A class that manages the directory of named apex sets that we
 // use for serialization.
 class ApexSetIndex {
-  let rootURL: URL
+  public let rootURL: URL
+  
+  private let logger: Logger
 
-  init(rootURL: URL) throws {
+  init(rootURL: URL, logger: Logger) throws {
     try FileManager.default.createDirectory(
       at: rootURL, 
       withIntermediateDirectories: true)
     self.rootURL = rootURL
-    print("ApexSetIndex initialized with root \(rootURL.description)")
+    self.logger = logger
+    logger.info("ApexSetIndex initialized with root [\(rootURL.description)]")
   }
 
   func load(name: String) throws -> ApexSet {
@@ -54,7 +61,15 @@ class ApexSetIndex {
   }
 
   func save(_ apexSet: ApexSet, name: String) throws {
-
+    let url = urlForName(name)
+    try FileManager.default.createDirectory(at: url, withIntermediateDirectories: false)
+    let elementsURL = url.appendingPathComponent("elements.json")
+    let metadataURL = url.appendingPathComponent("metadata.json")
+    let encoder = JSONEncoder()
+    let elements = try encoder.encode(apexSet.elements)
+    let metadata = try encoder.encode(apexSet.metadata)
+    try elements.write(to: elementsURL)
+    try metadata.write(to: metadataURL)
   }
 
   func loadMetadata(name: String) throws -> ApexSet.Metadata {
@@ -65,7 +80,8 @@ class ApexSetIndex {
   }
 
   func list() throws -> [String: ApexSet.Metadata] {
-    let urls = try FileManager.default.contentsOfDirectory(at: rootURL,
+    let urls = try FileManager.default.contentsOfDirectory(
+      at: rootURL,
       includingPropertiesForKeys:[URLResourceKey.isDirectoryKey])
     var results = [String: ApexSet.Metadata]()
     for url in urls {
@@ -76,18 +92,26 @@ class ApexSetIndex {
         continue
       }
       let name = url.lastPathComponent
-      results[name] = try loadMetadata(name: name)
+      guard let metadata = try? loadMetadata(name: name)
+      else {
+        continue
+      }
+      results[name] = metadata
     }
     return results
   }
 }
 
-func RandomApexesWithGridDensity(_ density: UInt, count: Int) -> [Apex] {
+func RandomApexesWithGridDensity(_ density: UInt, count: Int) -> ApexSet {
   // 17/24 > sqrt(2)/2 is the radius bound we need to make sure every point is
   // covered by at least one grid point neighborhood.
   let radius = GmpRational(17, over: 24) * GmpRational(1, over: UInt(density))
-  return (1...count).map { _ -> Apex in
+  let elements = (1...count).map { _ -> Apex in
     let coords = GmpRational.RandomApex(gridDensity: density)
     return Apex(coords, radius: radius)
   }
+  let metadata = ApexSet.Metadata(
+    count: count,
+    density: density)
+  return ApexSet(elements: elements, metadata: metadata)
 }
