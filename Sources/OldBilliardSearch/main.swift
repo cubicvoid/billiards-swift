@@ -1,6 +1,5 @@
 import Foundation
 import BilliardLib
-import Dispatch
 
 class ApexSet: Codable {
   var minRadius: GmpRational
