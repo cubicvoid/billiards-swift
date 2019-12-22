@@ -99,11 +99,11 @@ public class FeasibleVectorRange<k: Field & Comparable> {
     self.constraintIntersections = constraintIntersections
   }
 
-  public convenience init(
+  /*public convenience init(
       fromParams params: BilliardsParamsDeprecated<k>,
       orientation: Singularity.Orientation) {
     self.init(fromApex: params.apex, orientation: orientation)
-  }
+  }*/
 
   public func copy() -> FeasibleVectorRange<k> {
     return FeasibleVectorRange(constraints: constraints,
@@ -129,35 +129,6 @@ public class FeasibleVectorRange<k: Field & Comparable> {
         constraints[2].intersectionWith(constraints[0])]
     self.init(
         constraints: constraints,
-        constraintIntersections: constraintIntersections)
-  }
-
-  public convenience init(
-      fromApex apex: Vec2<k>, orientation: Singularity.Orientation) {
-    // Initializes to the finite path region going through the two apex
-    // edges of the specified triangle.
-    let constraints = [
-      AffineConstraint2d(
-          fromBoundaryCoords: Vec2<k>.origin,
-          side: .right),
-      AffineConstraint2d(
-        fromBoundaryCoords: Vec2(x: k.one, y: k.zero),
-        side: .right),
-      AffineConstraint2d(
-        fromBoundaryCoords: apex,
-        side: .left)]
-    //let constraintStr = constraints.map {
-    //    $0.description }.joined(separator: " ")
-    //print("constraints: \(constraintStr)")
-    let constraintIntersections = [
-      constraints[0].intersectionWith(constraints[1]),
-      constraints[1].intersectionWith(constraints[2]),
-      constraints[2].intersectionWith(constraints[0]),
-    ]
-    //let intersectionStr = constraintIntersections.map {
-    //    $0.description }.joined(separator: " ")
-    //print("intersections: \(intersectionStr)")
-    self.init(constraints: constraints,
         constraintIntersections: constraintIntersections)
   }
 

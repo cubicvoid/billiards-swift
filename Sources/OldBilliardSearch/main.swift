@@ -4,24 +4,24 @@ import Dispatch
 
 class ApexSet: Codable {
   var minRadius: GmpRational
-  var coords: [Coords2d<GmpRational>]
+  var coords: [Vec2<GmpRational>]
 
   init(count: Int, density: UInt) {
     // 17/24 > sqrt(2)/2 is the radius bound we need to make sure every point is
     // covered by at least one grid point neighborhood.
     minRadius = GmpRational(17, over: 24) * GmpRational(1, over: UInt(density))
-    coords = (1...count).map { _ -> Coords2d<GmpRational> in
+    coords = (1...count).map { _ -> Vec2<GmpRational> in
       return GmpRational.RandomApex(gridDensity: density)
     }
   }
 
-  init(failedFromSearchResults results: [SearchResult],
+  init(failedFromSearchResults results: [FanSearchResult],
        minRadius: GmpRational) {
     self.minRadius = minRadius
     self.coords = (results.filter {$0.cycle == nil}).map {$0.apex}
   }
 
-  init(failedFromSearchResultsApprox results: [SearchResultApprox],
+  init(failedFromSearchResultsApprox results: [FanSearchResultApprox],
        minRadius: GmpRational) {
     self.minRadius = minRadius
     self.coords = (results.filter {$0.cycle == nil}).map {$0.apex}
@@ -33,7 +33,7 @@ class RunConfig {
     case singleSearch
   }
 
-  var searchConfig: SearchConfig = SearchConfig()
+  var searchConfig: FanSearchConfig = FanSearchConfig()
   var runMode: RunMode = .singleSearch
 
   // If this run should generate its own random apexes, set apexCount to the
@@ -79,103 +79,24 @@ func RunConfigFromCommandLine() -> RunConfig {
       if next != nil {
         return 2
       }
-    case "--attemptCount":
+    case "--maxFanCount":
       if next != nil {
-        let attemptCount = Int(next!)
-        if attemptCount != nil {
-          runConfig.searchConfig.attemptCount = attemptCount!
+        let maxFanCount = Int(next!)
+        if maxFanCount != nil {
+          runConfig.searchConfig.maxFanCount = maxFanCount!
         }
         return 2
       }
-    case "--baseEdgeGranularity":
+    case "--maxFlipCount":
       if next != nil {
-        let edgeGranularity = Int(next!)
-        if edgeGranularity != nil {
-          runConfig.searchConfig.baseEdgeGranularity = edgeGranularity!
-        }
-        return 2
-      }
-    case "--apexEdgeGranularity":
-      if next != nil {
-        let edgeGranularity = Int(next!)
-        if edgeGranularity != nil {
-          runConfig.searchConfig.apexEdgeGranularity = edgeGranularity!
-        }
-        return 2
-      }
-    case "--maxPathLength":
-      if next != nil {
-        let maxPathLength = Int(next!)
-        if maxPathLength != nil {
-          runConfig.searchConfig.maxPathLength = maxPathLength!
-        }
-        return 2
-      }
-    case "--pathLengthIncrement":
-      if next != nil {
-        let pathLengthIncrement = Int(next!)
-        if pathLengthIncrement != nil {
-          runConfig.searchConfig.pathLengthIncrement = pathLengthIncrement!
-        }
-        return 2
-      }
-    case "--angleGranularity":
-      if next != nil {
-        let angleGranularity = Int(next!)
-        if angleGranularity != nil {
-          runConfig.searchConfig.angleGranularity = angleGranularity!
-        }
-        return 2
-      }
-    case "--distanceGranularity":
-      if next != nil {
-        let distanceGranularity = Int(next!)
-        if distanceGranularity != nil {
-          runConfig.searchConfig.distanceGranularity = distanceGranularity!
-        }
-        return 2
-      }
-    case "--tangentPickerType":
-      if next != nil {
-        switch next! {
-          case "edgeInterpolation":
-            runConfig.searchConfig.tangentPickerType = .edgeInterpolation
-          case "nearApproach":
-            runConfig.searchConfig.tangentPickerType = .nearApproach
-          default:
-            print("Unknown tangentPickerType")
-            exit(1)
-        }
-        return 2
-      }
-    case "--tangentCheckerType":
-      if next != nil {
-        switch next! {
-          case "exact":
-            runConfig.searchConfig.tangentCheckerType = .exact
-          case "floatFilter":
-            runConfig.searchConfig.tangentCheckerType = .floatFilter
-          case "bandFilter":
-            runConfig.searchConfig.tangentCheckerType = .bandFilter
-          default:
-            print("Unknown tangentCheckerType")
-            exit(1)
+        let maxFlipCount = Int(next!)
+        if maxFlipCount != nil {
+          runConfig.searchConfig.maxFlipCount = maxFlipCount!
         }
         return 2
       }
     case "--unsafeMath":
       runConfig.searchConfig.unsafeMath = true
-    case "--bandFocus":
-      if next != nil {
-        let bandFocus = UInt(next!)
-        if bandFocus != nil {
-          runConfig.searchConfig.bandFocus = bandFocus!
-        }
-        return 2
-      }
-    case "--knownPathsFilename":
-      runConfig.searchConfig.knownPathsFilename = next
-      return 2
     default:
       print("Unknown argument: \(argument)")
     }
@@ -208,7 +129,7 @@ func SaveJson<T: Codable>(_ object: T, toUrl url: URL) {
 }
 
 func SaveSearchResults(
-  config: SearchConfig, apexes: ApexSet, results: [SearchResult]) {
+    config: FanSearchConfig, apexes: ApexSet, results: [FanSearchResult]) {
   let formatter = DateFormatter()
   formatter.dateFormat = "yyyyMMdd-HHmmss"
   let dateString = formatter.string(from: Date())
@@ -216,7 +137,7 @@ func SaveSearchResults(
   // filenames more carefully.
   let prefix = "billiardsearch-\(dateString)"
   // TODO: Pick a better, more cross-platform target directory.
-  let dirPath = "/home/fae/billiards/results"
+  let dirPath = "Data"
   let dir = URL(fileURLWithPath: dirPath)
   let configURL = dir.appendingPathComponent("\(prefix).config.json")
   let apexURL = dir.appendingPathComponent("\(prefix).apexes.json")
@@ -266,7 +187,8 @@ func SaveSearchResults(
 }
 
 func SaveSearchResultsApprox(
-  config: SearchConfig, apexes: ApexSet, results: [SearchResultApprox]) {
+    config: FanSearchConfig, apexes: ApexSet,
+    results: [FanSearchResultApprox]) {
   let formatter = DateFormatter()
   formatter.dateFormat = "yyyyMMdd-HHmmss"
   let dateString = formatter.string(from: Date())
@@ -274,7 +196,7 @@ func SaveSearchResultsApprox(
   // filenames more carefully.
   let prefix = "billiardsearchapprox-\(dateString)"
   // TODO: Pick a better, more cross-platform target directory.
-  let dirPath = "/home/fae/billiards/results"
+  let dirPath = "Data"
   let dir = URL(fileURLWithPath: dirPath)
   let configURL = dir.appendingPathComponent("\(prefix).config.json")
   let apexURL = dir.appendingPathComponent("\(prefix).apexes.json")
@@ -340,7 +262,7 @@ func LoadApexes(runConfig: RunConfig) throws -> ApexSet? {
 
 func RunSingleSearch() {
   var found = 0
-  var searchResults: [SearchResult] = []
+  var searchResults: [FanSearchResult] = []
   let apexQueue = DispatchQueue(
     label: "me.faec.BilliardSearch.apexQueue",
     attributes: .concurrent)
@@ -351,15 +273,15 @@ func RunSingleSearch() {
     apexQueue.async {
       let startTime = GetTimeOfDay()
 
-      let cycle = TangentSearchForCycle(apex: apex,
-                                        config: runConfig.searchConfig)
+      let cycle = FanPathSearch(apex: apex,
+                                config: runConfig.searchConfig)
       let deltaTime = GetTimeOfDay() - startTime
       resultsQueue.sync(flags: .barrier) {
         if cycle != nil {
           found += 1
         }
         searchResults.append(
-          SearchResult(apex: apex, searchTime: deltaTime, cycle: cycle))
+          FanSearchResult(apex: apex, searchTime: deltaTime, cycle: cycle))
         print("Found \(found) / \(searchResults.count) so far")
       }
       apexGroup.leave()
@@ -376,7 +298,7 @@ func RunSingleSearch() {
 
 func RunSingleSearchApprox() {
   var found = 0
-  var searchResults: [SearchResultApprox] = []
+  var searchResults: [FanSearchResultApprox] = []
   let apexQueue = DispatchQueue(
     label: "me.faec.BilliardSearch.apexQueue",
     attributes: .concurrent)
@@ -387,15 +309,15 @@ func RunSingleSearchApprox() {
     apexQueue.async {
       let startTime = GetTimeOfDay()
 
-      let cycle = TangentSearchForCycleApprox(
+      let cycle = FanPathSearchApprox(
         apex: apex, config: runConfig.searchConfig)
       let deltaTime = GetTimeOfDay() - startTime
       resultsQueue.sync(flags: .barrier) {
         if cycle != nil {
           found += 1
         }
-        searchResults.append(
-          SearchResultApprox(apex: apex, searchTime: deltaTime, cycle: cycle))
+        searchResults.append(FanSearchResultApprox(
+            apex: apex, searchTime: deltaTime, cycle: cycle))
         print("Found \(found) / \(searchResults.count) so far")
       }
       apexGroup.leave()

@@ -15,7 +15,7 @@ slope: k, intercept: k) -> Vec2<k> {
   return DualForLineCoefficients(constraint.a, constraint.b, constraint.c)
 }
 
-public func TryFeasibleVectorRange() -> FeasibleVectorRange<GmpRational> {
+/*public func TryFeasibleVectorRange() -> FeasibleVectorRange<GmpRational> {
   typealias k = GmpRational
   let apex = Vec2(x: k(1, over: 2), y: k(2, over: 5))
   let params = BilliardsParamsDeprecated(apex: apex)
@@ -93,3 +93,4 @@ public func TryFeasibleVectorRange() -> FeasibleVectorRange<GmpRational> {
   print("Passed!")
   return vr
 }
+*/
