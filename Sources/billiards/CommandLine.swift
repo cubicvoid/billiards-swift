@@ -80,7 +80,12 @@ class ApexSetCommands {
     dateFormatter.timeStyle = .short
     dateFormatter.locale = .current
     dateFormatter.timeZone = .current
-    for (name, metadata) in sets {
+    let sortedNames = sets.keys.sorted(by: { (a: String, b: String) -> Bool in
+      return a.lowercased() < b.lowercased()
+    })
+    for name in sortedNames {
+      guard let metadata = sets[name]
+      else { continue }
       var line = name
       if let count = metadata.count {
         line += " (\(count))"
