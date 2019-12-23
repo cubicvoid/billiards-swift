@@ -24,6 +24,32 @@ class Commands {
   }
 }
 
+public protocol InitializedByString {
+  init(_ str: String)
+}
+
+func ScanParams(_ args: [String]) -> [String: String] {
+  var results: [String: String] = [:]
+  for arg in args {
+    if let separatorIndex = arg.firstIndex(of: ":") {
+      let key = String(arg[..<separatorIndex])
+      let valueStart = arg.index(after: separatorIndex)
+      let value = String(arg[valueStart...])
+      if key != "" {
+        results[key] = value
+      }
+    }
+  }
+  return results
+}
+
+func defaultApexSetName() -> String {
+  let formatter = DateFormatter()
+  formatter.dateFormat = "yyyyMMdd-HHmmss"
+  let dateString = formatter.string(from: Date())
+  return "apexes-\(dateString)"
+}
+
 class ApexSetCommands {
   let logger: Logger
   let apexSetIndex: ApexSetIndex
@@ -37,6 +63,20 @@ class ApexSetCommands {
       logger: logger)
   }
 
+  func create(_ args: [String]) {
+    let params = ScanParams(args)
+
+    let name = params["name"] ?? defaultApexSetName()
+    let countString = params["count"] ?? "100"
+    let densityString = params["gridDensity"] ?? "5000000000"
+
+    let count = Int(countString)!
+    let density = UInt(densityString)!
+    let apexSet = RandomApexesWithGridDensity(density, count: count)
+    logger.info("Generated apex set with density: \(density), count: \(count)")
+    try! apexSetIndex.save(apexSet, name: name)
+  }
+
   func list() {
     let sets = try! apexSetIndex.list()
     for (name, metadata) in sets {
@@ -45,6 +85,20 @@ class ApexSetCommands {
         suffix = " (\(count))"
       }
       print("\(name)\(suffix)")
+    }
+  }
+
+  func delete(_ args: [String]) {
+    guard let name = args.first
+    else {
+      print("apexSet delete: expected apex set name")
+      exit(1)
+    }
+    do {
+      try apexSetIndex.delete(name: name)
+      logger.info("Deleted apex set '\(name)'")
+    } catch {
+      logger.error("Couldn't delete apex set '\(name)': \(error)")
     }
   }
 
@@ -57,7 +111,11 @@ class ApexSetCommands {
     switch command {
       case "list":
         list()
-        default:
+      case "delete":
+        delete(Array(args[1...]))
+      case "create":
+        create(Array(args[1...]))
+      default:
         print("Unrecognized command '\(command)'")
     }
   }

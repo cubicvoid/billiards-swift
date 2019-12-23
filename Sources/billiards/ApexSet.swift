@@ -48,28 +48,44 @@ class ApexSetIndex {
     logger.info("ApexSetIndex initialized with root [\(rootURL.description)]")
   }
 
-  func load(name: String) throws -> ApexSet {
-    let metadata = try loadMetadata(name: name)
-    let elementsURL = urlForName(name).appendingPathComponent("elements.json")
-    let data = try Data(contentsOf: elementsURL)
-    let elements = try JSONDecoder().decode([Apex].self, from: data)
-    return ApexSet(elements: elements, metadata: metadata)
-  }
-
   func urlForName(_ name: String) -> URL {
     return rootURL.appendingPathComponent(name)
   }
 
+  func load(name: String) throws -> ApexSet {
+    do {
+      let metadata = try loadMetadata(name: name)
+      let elementsURL = urlForName(name).appendingPathComponent("elements.json")
+      let data = try Data(contentsOf: elementsURL)
+      let elements = try JSONDecoder().decode([Apex].self, from: data)
+      return ApexSet(elements: elements, metadata: metadata)
+    } catch {
+      logger.error("Couldn't load apex set '\(name)': \(error)")
+      throw error
+    }
+  }
+
   func save(_ apexSet: ApexSet, name: String) throws {
+    do {
+      let url = urlForName(name)
+      try FileManager.default.createDirectory(at: url, withIntermediateDirectories: false)
+      let elementsURL = url.appendingPathComponent("elements.json")
+      let metadataURL = url.appendingPathComponent("metadata.json")
+      let encoder = JSONEncoder()
+      let elements = try encoder.encode(apexSet.elements)
+      let metadata = try encoder.encode(apexSet.metadata)
+      try elements.write(to: elementsURL)
+      try metadata.write(to: metadataURL)
+      logger.info("Saved apex set '\(name)'")
+    } catch {
+      logger.error("Couldn't save apex set '\(name)': \(error)")
+      throw error
+    }
+  }
+
+  func delete(name: String) throws {
     let url = urlForName(name)
-    try FileManager.default.createDirectory(at: url, withIntermediateDirectories: false)
-    let elementsURL = url.appendingPathComponent("elements.json")
-    let metadataURL = url.appendingPathComponent("metadata.json")
-    let encoder = JSONEncoder()
-    let elements = try encoder.encode(apexSet.elements)
-    let metadata = try encoder.encode(apexSet.metadata)
-    try elements.write(to: elementsURL)
-    try metadata.write(to: metadataURL)
+    try FileManager.default.removeItem(at: url)
   }
 
   func loadMetadata(name: String) throws -> ApexSet.Metadata {
