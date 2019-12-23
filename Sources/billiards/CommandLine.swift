@@ -24,10 +24,6 @@ class Commands {
   }
 }
 
-public protocol InitializedByString {
-  init(_ str: String)
-}
-
 func ScanParams(_ args: [String]) -> [String: String] {
   var results: [String: String] = [:]
   for arg in args {
@@ -79,12 +75,21 @@ class ApexSetCommands {
 
   func list() {
     let sets = try! apexSetIndex.list()
+    let dateFormatter = DateFormatter()
+    dateFormatter.dateStyle = .short
+    dateFormatter.timeStyle = .short
+    dateFormatter.locale = .current
+    dateFormatter.timeZone = .current
     for (name, metadata) in sets {
-      var suffix = ""
+      var line = name
       if let count = metadata.count {
-        suffix = " (\(count))"
+        line += " (\(count))"
       }
-      print("\(name)\(suffix)")
+      if let created = metadata.created {
+        let localized = dateFormatter.string(from: created)
+        line += " \(localized)"
+      }
+      print(line)
     }
   }
 

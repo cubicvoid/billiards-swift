@@ -19,11 +19,13 @@ class ApexSet: Codable {
   public class Metadata: Codable {
     public let count: Int?
     public let density: UInt?
+    public let created: Date?
 
-    public init(count: Int?, density: UInt? = nil) {
+    public init(count: Int?, density: UInt? = nil, created: Date? = nil) {
       self.count = count
       self.density = density
-      }
+      self.created = created
+    }
   }
 
   public init(elements: [Apex], metadata: Metadata) {
@@ -129,6 +131,7 @@ func RandomApexesWithGridDensity(_ density: UInt, count: Int) -> ApexSet {
   }
   let metadata = ApexSet.Metadata(
     count: count,
-    density: density)
+    density: density,
+    created: Date())
   return ApexSet(elements: elements, metadata: metadata)
 }
