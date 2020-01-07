@@ -56,28 +56,54 @@ func WriteToFile(_ name: String, _ data: String) {
   }
 }
 
-extension Field where Self: Comparable {
-  // Chooses a random Vec2 that is within the top left quadrant of the
-  // radius-1/2 circle centered at (1/2, 0), suitable to use as a triangle apex.
-  //
-  public static func RandomApex(gridDensity: UInt) -> Vec2<Self> {
-    var dx = Self.one
-    var dy = Self.one
-    var x: Self = Self.zero
-    var y: Self = Self.zero
-    let numeratorRange = (gridDensity - 1) / 2
-    while dx*dx + dy*dy >= Self(1, over: 4) {
-      x = Self(RandomUniform(numeratorRange) + 1, over: gridDensity)
-      //y = Self(1, over: 1000)
-      y = Self(RandomUniform(numeratorRange) + 1, over: gridDensity)
-      dx = Self(1, over: 2) - x
-      dy = y
-    }
-    return Vec2(x: x, y: y)
-  }
+enum RandomError: Error {
+    case outOfBounds(String)
 }
 
-public func RandomUniform(_ upperBound: UInt?) -> UInt {
+// Chooses a random Vec2 that is within the upper half of the
+// radius-1/2 circle centered at (1/2, 0), suitable to use as a triangle apex.
+//
+public func RandomObtuseApex(gridDensity: UInt) throws -> Vec2<GmpRational> {
+  if gridDensity > 62 {
+    throw RandomError.outOfBounds("RandomObtuseApex: gridDensity > 62 not implemented")
+  }
+  typealias k = GmpRational
+  let cellFrequency: UInt = 1 << gridDensity
+  //let numerator = RandomInt(gridDensity)
+
+  // x and y are absolute coordinates, dx and dy are vectors relative
+  // to (1/2, 0) (the center of the circle)
+  var dx = k.one
+  var dy = k.one
+  var x = k.zero
+  var y = k.zero
+  while dx*dx + dy*dy >= k(1, over: 4) {
+    let xrand = try! RandomInt(bits: gridDensity)
+    x = k(Int(xrand), over: cellFrequency) + k(1, over: 2*cellFrequency)
+    //y = Self(1, over: 1000)
+    let yrand = try! RandomInt(bits: gridDensity - 1)
+    y = k(Int(yrand), over: cellFrequency) + k(1, over: 2*cellFrequency)
+    dx = k(1, over: 2) - x
+    dy = y
+  }
+  return Vec2(x: x, y: y)
+}
+
+// returns a uniformly (pseudo)random integer between 0 (inclusive) and
+// 2^bits (exclusive).
+func RandomInt(bits: UInt) throws -> Int64 {
+  if bits > 63 {
+    throw RandomError.outOfBounds("RandomInt: bits must equal at most 63")
+  }
+  var result = UInt64(arc4random())
+  if bits > 32 {
+    result += UInt64(arc4random()) * 0x100000000
+  }
+  result %= UInt64(1) << bits
+  return Int64(result)
+}
+
+/*public func RandomUniform(_ upperBound: UInt?) -> UInt {
   if upperBound == nil {
     return UInt(arc4random()) * 0x100000000 + UInt(arc4random())
   }
@@ -92,7 +118,7 @@ public func RandomUniform(_ upperBound: UInt?) -> UInt {
       UInt(arc4random_uniform(ub_hi+1)) * 0x100000000 + UInt(arc4random())
   }
   return result
-}
+}*/
 
 public func GetTimeOfDay() -> Double {
   var t : timeval = timeval(tv_sec: 0, tv_usec: 0)

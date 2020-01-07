@@ -2,18 +2,10 @@ import Foundation
 import BilliardLib
 import Logging
 
-class Apex: Codable {
-  let coords: Vec2<GmpRational>
-  let radius: GmpRational?
+typealias Point = Vec2<GmpRational>
 
-  public init(_ coords: Vec2<GmpRational>, radius: GmpRational? = nil) {
-    self.coords = coords
-    self.radius = radius
-  }
-}
-
-class ApexSet: Codable {
-  public let elements: [Apex]
+class PointSet: Codable {
+  public let elements: [Point]
   public let metadata: Metadata
   
   public class Metadata: Codable {
@@ -28,7 +20,7 @@ class ApexSet: Codable {
     }
   }
 
-  public init(elements: [Apex], metadata: Metadata) {
+  public init(elements: [Point], metadata: Metadata) {
     self.elements = elements
     self.metadata = metadata
   }
@@ -36,7 +28,7 @@ class ApexSet: Codable {
 
 // A class that manages the directory of named apex sets that we
 // use for serialization.
-class ApexSetIndex {
+class PointSetManager {
   public let rootURL: URL
   
   private let logger: Logger
@@ -47,35 +39,35 @@ class ApexSetIndex {
       withIntermediateDirectories: true)
     self.rootURL = rootURL
     self.logger = logger
-    logger.info("ApexSetIndex initialized with root [\(rootURL.description)]")
+    logger.info("PointSetManager initialized with root [\(rootURL.description)]")
   }
 
   func urlForName(_ name: String) -> URL {
     return rootURL.appendingPathComponent(name)
   }
 
-  func load(name: String) throws -> ApexSet {
+  func load(name: String) throws -> PointSet {
     do {
       let metadata = try loadMetadata(name: name)
       let elementsURL = urlForName(name).appendingPathComponent("elements.json")
       let data = try Data(contentsOf: elementsURL)
-      let elements = try JSONDecoder().decode([Apex].self, from: data)
-      return ApexSet(elements: elements, metadata: metadata)
+      let elements = try JSONDecoder().decode([Point].self, from: data)
+      return PointSet(elements: elements, metadata: metadata)
     } catch {
       logger.error("Couldn't load apex set '\(name)': \(error)")
       throw error
     }
   }
 
-  func save(_ apexSet: ApexSet, name: String) throws {
+  func save(_ pointSet: PointSet, name: String) throws {
     do {
       let url = urlForName(name)
       try FileManager.default.createDirectory(at: url, withIntermediateDirectories: false)
       let elementsURL = url.appendingPathComponent("elements.json")
       let metadataURL = url.appendingPathComponent("metadata.json")
       let encoder = JSONEncoder()
-      let elements = try encoder.encode(apexSet.elements)
-      let metadata = try encoder.encode(apexSet.metadata)
+      let elements = try encoder.encode(pointSet.elements)
+      let metadata = try encoder.encode(pointSet.metadata)
       try elements.write(to: elementsURL)
       try metadata.write(to: metadataURL)
       logger.info("Saved apex set '\(name)'")
@@ -90,18 +82,18 @@ class ApexSetIndex {
     try FileManager.default.removeItem(at: url)
   }
 
-  func loadMetadata(name: String) throws -> ApexSet.Metadata {
+  func loadMetadata(name: String) throws -> PointSet.Metadata {
     let url = urlForName(name).appendingPathComponent("metadata.json")
     let data = try Data(contentsOf: url)
     let decoder = JSONDecoder()
-    return try decoder.decode(ApexSet.Metadata.self, from: data)
+    return try decoder.decode(PointSet.Metadata.self, from: data)
   }
 
-  func list() throws -> [String: ApexSet.Metadata] {
+  func list() throws -> [String: PointSet.Metadata] {
     let urls = try FileManager.default.contentsOfDirectory(
       at: rootURL,
       includingPropertiesForKeys:[URLResourceKey.isDirectoryKey])
-    var results = [String: ApexSet.Metadata]()
+    var results = [String: PointSet.Metadata]()
     for url in urls {
       let name = url.lastPathComponent
       do {
@@ -121,17 +113,16 @@ class ApexSetIndex {
   }
 }
 
-func RandomApexesWithGridDensity(_ density: UInt, count: Int) -> ApexSet {
+func RandomApexesWithGridDensity(_ density: UInt, count: Int) -> PointSet {
   // 17/24 > sqrt(2)/2 is the radius bound we need to make sure every point is
   // covered by at least one grid point neighborhood.
-  let radius = GmpRational(17, over: 24) * GmpRational(1, over: UInt(density))
-  let elements = (1...count).map { _ -> Apex in
-    let coords = GmpRational.RandomApex(gridDensity: density)
-    return Apex(coords, radius: radius)
+  // let radius = GmpRational(17, over: 24) * GmpRational(1, over: UInt(density))
+  let elements = (1...count).map { _ -> Point in
+    try! RandomObtuseApex(gridDensity: density)
   }
-  let metadata = ApexSet.Metadata(
+  let metadata = PointSet.Metadata(
     count: count,
     density: density,
     created: Date())
-  return ApexSet(elements: elements, metadata: metadata)
+  return PointSet(elements: elements, metadata: metadata)
 }

@@ -15,9 +15,9 @@ class Commands {
       exit(1)
     }
     switch command {
-      case "apexSet":
-        let apexSetCommands = ApexSetCommands(logger: logger)
-        apexSetCommands.run(Array(args[1...]))
+      case "pointset":
+        let pointSetCommands = PointSetCommands(logger: logger)
+        pointSetCommands.run(Array(args[1...]))
       default:
         print("Unrecognized command '\(command)'")
     }
@@ -39,42 +39,42 @@ func ScanParams(_ args: [String]) -> [String: String] {
   return results
 }
 
-func defaultApexSetName() -> String {
+func defaultPointSetName() -> String {
   let formatter = DateFormatter()
   formatter.dateFormat = "yyyyMMdd-HHmmss"
   let dateString = formatter.string(from: Date())
-  return "apexes-\(dateString)"
+  return "points-\(dateString)"
 }
 
-class ApexSetCommands {
+class PointSetCommands {
   let logger: Logger
-  let apexSetIndex: ApexSetIndex
+  let pointSetManager: PointSetManager
 
   public init(logger: Logger) {
     self.logger = logger
     let path = FileManager.default.currentDirectoryPath
     let dataURL = URL(fileURLWithPath: path).appendingPathComponent("data")
-    apexSetIndex = try! ApexSetIndex(
-      rootURL: dataURL.appendingPathComponent("apexSet"),
+    pointSetManager = try! PointSetManager(
+      rootURL: dataURL.appendingPathComponent("pointset"),
       logger: logger)
   }
 
-  func create(_ args: [String]) {
+  func cmd_create(_ args: [String]) {
     let params = ScanParams(args)
 
-    let name = params["name"] ?? defaultApexSetName()
+    let name = params["name"] ?? defaultPointSetName()
     let countString = params["count"] ?? "100"
     let densityString = params["gridDensity"] ?? "5000000000"
 
     let count = Int(countString)!
     let density = UInt(densityString)!
-    let apexSet = RandomApexesWithGridDensity(density, count: count)
-    logger.info("Generated apex set with density: \(density), count: \(count)")
-    try! apexSetIndex.save(apexSet, name: name)
+    let pointSet = RandomApexesWithGridDensity(density, count: count)
+    logger.info("Generated point set with density: \(density), count: \(count)")
+    try! pointSetManager.save(pointSet, name: name)
   }
 
-  func list() {
-    let sets = try! apexSetIndex.list()
+  func cmd_list() {
+    let sets = try! pointSetManager.list()
     let dateFormatter = DateFormatter()
     dateFormatter.dateStyle = .short
     dateFormatter.timeStyle = .short
@@ -98,33 +98,55 @@ class ApexSetCommands {
     }
   }
 
-  func delete(_ args: [String]) {
+  func cmd_print(_ args: [String]) {
+    let params = ScanParams(args)
+
+    guard let name = params["name"]
+    else {
+      print("pointset print: expected name\n")
+      return
+    }
+    let pointSet = try! pointSetManager.load(name: name)
+    for p in pointSet.elements {
+      print("\(p.x),\(p.y)")
+    }
+  }
+
+  func cmd_plot(_ args: [String]) {
+
+  }
+
+  func cmd_delete(_ args: [String]) {
     guard let name = args.first
     else {
-      print("apexSet delete: expected apex set name")
+      print("pointset delete: expected point set name")
       exit(1)
     }
     do {
-      try apexSetIndex.delete(name: name)
+      try pointSetManager.delete(name: name)
       logger.info("Deleted apex set '\(name)'")
     } catch {
-      logger.error("Couldn't delete apex set '\(name)': \(error)")
+      logger.error("Couldn't delete point set '\(name)': \(error)")
     }
   }
 
   func run(_ args: [String]) {
     guard let command = args.first
     else {
-      print("apexSet: expected command")
+      print("pointset: expected command")
       exit(1)
     }
     switch command {
       case "list":
-        list()
+        cmd_list()
+      case "print":
+        cmd_print(Array(args[1...]))
       case "delete":
-        delete(Array(args[1...]))
+        cmd_delete(Array(args[1...]))
       case "create":
-        create(Array(args[1...]))
+        cmd_create(Array(args[1...]))
+      case "plot":
+        cmd_plot(Array(args[1...]))
       default:
         print("Unrecognized command '\(command)'")
     }

@@ -1,7 +1,7 @@
 import Foundation
 import BilliardLib
 import Dispatch
-
+/*
 class ApexSet: Codable {
   var minRadius: GmpRational
   var coords: [Vec2<GmpRational>]
@@ -57,10 +57,7 @@ func SaveSearchResults(minRadius: GmpRational, results: [SearchResult]) {
       if radius < minRadius {
         print("Error: \(result.cycle!.path) could not be verified")
         continue
-      }/* else {
-        verified += 1
-        print("Verified \(verified) paths")
-      }*/
+      }
       let ratio = radius / minRadius
       let log2Ratio = log2(ratio.asDouble())
       let pathLength = result.cycle!.path.length
@@ -107,3 +104,4 @@ for prefix in arguments[1...] {
 }
 
 SaveSearchResults(minRadius: minRadius, results: allResults)
+*/
