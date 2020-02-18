@@ -11,7 +11,7 @@ import BilliardLib
 
 class BilliardsDataTests: XCTestCase {
 
-  func testMaxTurn() {
+  /*func testMaxTurn() {
     typealias TestCase = (apex: Vec2<k>, expectedDegrees: Singularities<Int>)
     let tests: [TestCase] = [
       (apex: Vec2(k(1, over: 2), k(1, over: 2)),
@@ -29,6 +29,6 @@ class BilliardsDataTests: XCTestCase {
           "Max turn around \(s) with apex \(test.apex) should be \(expected)")
       }
     }
-  }
+  }*/
 
 }

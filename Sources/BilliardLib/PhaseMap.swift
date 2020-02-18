@@ -135,20 +135,27 @@ public class QuadPhaseMap<
 
 }
 
+public enum AngleBound {
+  case none
+  case pi
+  case twoPi
+}
+
+
 public class DiscPhaseMap<k: Field & Comparable & CustomStringConvertible> {
   public let apex: Vec2<k>
   public let base: Singularities<Vec2<k>>
+  //public let center: Singularity
   //public let maxTurn: Int
   public let regions: [Index: Region]
   
-  public typealias Index = Singularity.Turn
+  public typealias Index = Int
   public typealias Region = PhaseMapRegion<k>
 
   public init(apexOverBase apex: Vec2<k>) {
-    let billiards = BilliardsData(apex: apex)
+    let vertex = BaseVertexData(apexOverBase: apex)
     
-    let maxTurns = billiards.maxTurnAroundSingularity
-    
+    let maxTurns = vertex.maxTurnAroundSingularity
     
     let base = Singularities(
       Vec2(x: -apex.x / apex.y, y: k.zero),
@@ -156,6 +163,19 @@ public class DiscPhaseMap<k: Field & Comparable & CustomStringConvertible> {
       //Vec2.origin, Vec2(x: k.one, y: k.zero))
     
     var regions: [Index: Region] = [:]
+
+    /*var nearConstrainedPoly = SphericalPolygon<k>.fullSphere
+    for turnDegree in -maxTurns...maxTurns {
+      guard let turnSign = Sign.of(turnDegree)
+      else { continue }
+      let rotationVector = vertex.rotationVector(degree: turnDegree)
+
+      nearConstrainedPoly = nearConstrainedPoly.withConstraint()
+      regions[turnDegree] = Region(
+        polygon: polygon, transform: transform)
+      
+    }
+
     for singularity in Singularity.all {
       let baseEdge = DiscPathEdge(
           billiards: billiards, coords: base,
@@ -195,6 +215,76 @@ public class DiscPhaseMap<k: Field & Comparable & CustomStringConvertible> {
       }
       
       
+    }*/
+
+    self.base = base
+    self.apex = apex
+    self.regions = regions
+  }
+}
+
+/*public class DoubleDiscPhaseMap<k: Field & Comparable & CustomStringConvertible> {
+  public let apex: Vec2<k>
+  public let base: Singularities<Vec2<k>>
+  //public let maxTurn: Int
+  public let regions: [Index: Region]
+  
+  public typealias Index = Singularity.Turn
+  public typealias Region = PhaseMapRegion<k>
+
+  public init(apexOverBase apex: Vec2<k>) {
+    let billiards = BilliardsData(apex: apex)
+    
+    //let maxTurns = billiards.maxTurnAroundSingularity
+    
+    
+    let base = Singularities(
+      Vec2(x: -apex.x / apex.y, y: k.zero),
+      Vec2(x: (k.one - apex.x) / apex.y, y: k.zero))
+      //Vec2.origin, Vec2(x: k.one, y: k.zero))
+    
+    var regions: [Index: Region] = [:]
+    for singularity in Singularity.all {
+      let baseEdge = DiscPathEdge(
+          billiards: billiards, coords: base,
+          orientation: Singularity.Orientation.to(singularity),
+          rotationCounts: Singularities(s0: 0, s1: 0))
+      let centerConstraints = [
+        Vec3(affineXY: baseEdge.apexForSide(.right)),
+        -Vec3(affineXY: baseEdge.apexForSide(.left))
+      ]
+      let incomingPolygon = SphericalPolygon<k>.fromConstraints(centerConstraints)
+      /*let incomingPolygon = SphericalPolygon.fromConstraints([
+        Vec3(affineXY: baseEdge.apexForSide(.right)),
+        -Vec3(affineXY: baseEdge.apexForSide(.left))])*/
+      for turnSign in [Sign.positive, Sign.negative] {
+        var turnDegree = 1
+        let rotation = billiards.rotation[singularity]
+        while let turnedEdge = baseEdge.reversed().turnedBy(turnDegree, angleBound: .pi) {
+          let lowerBoundary = turnedEdge.apexForSide(.right)
+          let upperBoundary = turnedEdge.apexForSide(.left)
+          let singularityBoundary = turnedEdge.fromCoords()
+          let polygon = incomingPolygon.withConstraints([
+            Vec3(affineXY: lowerBoundary),
+            -Vec3(affineXY: upperBoundary),
+            (-turnSign) * Vec3(affineXY: singularityBoundary)
+            ])
+          let rotationVector = billiards.rotationVectorAroundTurn(turn)
+          let transform = Matrix3x3<k>.identity()
+            .translatedBy(-baseEdge.coords[singularity])
+            .dividedByComplex(rotationVector)
+            .translatedBy(baseEdge.coords[singularity])
+
+
+          let turn = orientation.
+          regions[turn] = Region(
+            polygon: polygon,
+            transform: transform)
+          turnDegree += 1
+        }
+      }
+      
+      
     }
 
     self.base = base
@@ -202,9 +292,9 @@ public class DiscPhaseMap<k: Field & Comparable & CustomStringConvertible> {
     self.regions = regions
   }
   
-}
+}*/
 
-public class MonoDiscPhaseMap<k: Field & Comparable & CustomStringConvertible> {
+public class MonoDoubleDiscPhaseMap<k: Field & Comparable & CustomStringConvertible> {
   /*public let base: Singularities<Vec2<k>>
   //public let maxTurn: Int
   public let regions: [Index: Region]

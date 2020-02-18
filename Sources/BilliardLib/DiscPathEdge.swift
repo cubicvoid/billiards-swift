@@ -69,7 +69,7 @@ public class FanPathEdgeDeprecated<k: Field & Comparable> {
 
   public func turnBy(_ turnDegree: Int) -> FanPathEdgeDeprecated<k> {
     // We rotate around the singularity we're pointing at
-    let turn: Singularity.Turn = orientation.to.turnBy(turnDegree)
+    /*let turn: Singularity.Turn = orientation.to.turnBy(turnDegree)
     let rotationCoeff = params.vectorForTurn(turn)
     let baseOffset = coords[orientation.from] - coords[orientation.to]
     let newCoords = -Sign(of: orientation) * Singularities(
@@ -78,13 +78,13 @@ public class FanPathEdgeDeprecated<k: Field & Comparable> {
 
     let newCount = rotationCounts[orientation.to] + turnDegree
     let newRotationCounts =
-        rotationCounts.withValue(newCount, forSingularity: orientation.to)
+        rotationCounts.withValue(newCount, forSingularity: orientation.to)*/
 
     return FanPathEdgeDeprecated(
         params: params,
-        coords: newCoords,
+        coords: coords,//newCoords,
         orientation: -orientation,
-        rotationCounts: newRotationCounts)
+        rotationCounts: rotationCounts)//newRotationCounts)
   }
 
   public func isAngleZero() -> Bool {
@@ -140,9 +140,10 @@ public class DiscPathEdge<k: Field & Comparable> {
     return _apexForSide(side, orientation: orientation)
   }
   
-  public func turnedBy(_ turnDegree: Int) -> DiscPathEdge<k> {
-    let rotationCoeff = billiards.rotationVectorAroundSingularity(
-      orientation.from, byDegree: turnDegree)
+  public func turnedBy(_ turnDegree: Int, angleBound: AngleBound) -> DiscPathEdge<k>? {
+    guard let rotationCoeff =
+        billiards.rotation[orientation.from].pow(turnDegree, angleBound: angleBound)
+    else { return nil }
     let initialOffset = coords[orientation.to] - coords[orientation.from]
     let newOffset = initialOffset.complexMul(rotationCoeff)
     let newCoords = coords.withValue(coords[orientation.from] + newOffset, forSingularity: orientation.to)

@@ -63,25 +63,26 @@ public class BilliardsParamsDeprecated<k: Field & Comparable> {
 
 public class BilliardsData<k: Field & Comparable> {
   public let apexOverBase: Singularities<Vec2<k>>
-  public let maxTurnAroundSingularity: Singularities<Int>
+  //public let maxTurnAroundSingularity: Singularities<Int>
 
-  private let _rotationCache: Singularities<LazyExpArray<k>>
+
+  public let rotation: Singularities<UnitPowerCache<k>>
   
   public init(apexOverBase: Singularities<Vec2<k>>) {
     self.apexOverBase = apexOverBase
-    _rotationCache = Singularities(
+    self.rotation = Singularities(
       // Reorient the relative apexes so they're both widdershins
       s0: apexOverBase[.S0],
       s1: apexOverBase[.S1].complexConjugate()
     ).map { apex in
       // reflection thru each edge rotates the base by the apex over its
       // conjugate
-      LazyExpArray(base: apex.complexDividedBy(apex.complexConjugate()))
+      UnitPowerCache(fromSquareRoot: apex)
     }
     
-    maxTurnAroundSingularity = _rotationCache.map { powers in
+    /*maxTurnAroundSingularity = _rotationCache.map { powers in
       powers.firstLowerHalfPlane()
-    }
+    }*/
   }
   
   public convenience init(apex: Vec2<k>) {
@@ -91,19 +92,39 @@ public class BilliardsData<k: Field & Comparable> {
     )
   }
   
-  public func rotationVectorAroundSingularity(
+  /*public func rotationVectorAroundSingularity(
       _ s: Singularity, byDegree degree: Int) -> Vec2<k> {
+    return rotation[s].pow(degree)
+  }*/
+  
+  /*public func rotationVectorAroundTurn(_ turn: Singularity.Turn) -> Vec2<k> {
+    return rotationVectorAroundSingularity(
+        turn.singularity, byDegree: turn.degree)
+  }*/
+}
+
+public class BaseVertexData<k: Field & Comparable> {
+  // the apex divided by the other base vertex (with the current
+  // vertex taken to be the origin).
+  public let apexOverBase: Vec2<k>
+  public let maxTurnAroundSingularity: Int
+
+  private let _rotationCache: LazyExpArray<k>
+  
+  public init(apexOverBase apex: Vec2<k>) {
+    self.apexOverBase = apex
+    self._rotationCache = LazyExpArray(base: apex.complexDividedBy(apex.complexConjugate()))
+
+    maxTurnAroundSingularity = _rotationCache.firstLowerHalfPlane()
+  }
+  
+  public func rotationVector(degree: Int) -> Vec2<k> {
     let magnitude = abs(degree)
-    let turnVector = _rotationCache[s][magnitude]
+    let turnVector = _rotationCache[magnitude]
     if degree < 0 {
       return turnVector.complexConjugate()
     }
     return turnVector
-  }
-  
-  public func rotationVectorAroundTurn(_ turn: Singularity.Turn) -> Vec2<k> {
-    return rotationVectorAroundSingularity(
-        turn.singularity, byDegree: turn.degree)
   }
 }
 

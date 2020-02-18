@@ -125,6 +125,12 @@ public extension Vec2 where R: Field {
   }
 }
 
+public extension Vec2 where R: Numeric {
+  func asDoubleVec() -> Vec2<Double> {
+    return Vec2<Double>(x.asDouble(), y.asDouble())
+  }
+}
+
 public final class Vec3<R: Ring>: CanonicalNegation, Equatable {
   private let _v: [R]
 

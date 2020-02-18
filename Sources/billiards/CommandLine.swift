@@ -1,6 +1,8 @@
 import Foundation
 import Logging
 
+import BilliardLib
+
 class Commands {
   let logger: Logger
 
@@ -46,6 +48,19 @@ func defaultPointSetName() -> String {
   return "points-\(dateString)"
 }
 
+func colorForResult(_ result: PathFeasibility.Result) -> CGColor? {
+  if result.feasible {
+    return CGColor(red: 0.8, green: 0.2, blue: 0.8, alpha: 0.4)
+  } else if result.apexFeasible && result.baseFeasible {
+    return CGColor(red: 0.8, green: 0.8, blue: 0.2, alpha: 0.4)
+  } else if result.apexFeasible {
+    return CGColor(red: 0.1, green: 0.7, blue: 0.1, alpha: 0.4)
+  } else if result.baseFeasible {
+    return CGColor(red: 0.1, green: 0.1, blue: 0.7, alpha: 0.4)
+  }
+  return nil
+}
+
 class PointSetCommands {
   let logger: Logger
   let pointSetManager: PointSetManager
@@ -64,7 +79,7 @@ class PointSetCommands {
 
     let name = params["name"] ?? defaultPointSetName()
     let countString = params["count"] ?? "100"
-    let densityString = params["gridDensity"] ?? "5000000000"
+    let densityString = params["gridDensity"] ?? "32"
 
     let count = Int(countString)!
     let density = UInt(densityString)!
@@ -113,6 +128,72 @@ class PointSetCommands {
   }
 
   func cmd_plot(_ args: [String]) {
+    let params = ScanParams(args)
+    guard let name = params["name"]
+    else {
+      print("pointset plot: expected name\n")
+      return
+    }
+    let pointSet = try! pointSetManager.load(name: name)
+
+    let outputURL = URL(fileURLWithPath: "plot.png")
+    let width = 2000
+    let height = 1000
+    let scale = Double(width) * 0.9
+    let imageCenter = Vec2(Double(width) / 2, Double(height) / 2)
+    let modelCenter = Vec2(0.5, 0.25)
+    let pointRadius = CGFloat(4);
+
+    func toImageCoords(_ v: Vec2<Double>) -> Vec2<Double> {
+      return (v - modelCenter) * scale + imageCenter
+    }
+
+    //let filter = PathFilter(path: [-2, 2, 2, -2])
+    let feasibility = PathFeasibility(path: [-2, 2, 2, -2])
+
+    ContextRenderToURL(outputURL, width: width, height: height)
+    { (context: CGContext) in
+      var i = 0
+      for point in pointSet.elements {
+        //print("point \(i)")
+        i += 1
+        let modelCoords = point//point.asDoubleVec()
+        let result = feasibility.forApex(modelCoords)
+        guard let color: CGColor = colorForResult(result)
+        else {
+        //if !filter.includePoint(modelCoords) {//!filterPoint(modelCoords) {
+          continue
+        }
+        let imageCoords = toImageCoords(modelCoords.asDoubleVec())
+        
+        context.beginPath()
+        //print("point: \(imageCoords.x), \(imageCoords.y)")
+        context.addArc(
+          center: CGPoint(x: imageCoords.x, y: imageCoords.y),
+          radius: pointRadius,
+          startAngle: 0.0,
+          endAngle: CGFloat.pi * 2.0,
+          clockwise: false
+        )
+        context.closePath()
+        context.setFillColor(color)
+        context.drawPath(using: .fill)
+      }
+
+      // draw the containing half-circle
+      context.beginPath()
+      let circleCenter = toImageCoords(Vec2(0.5, 0.0))
+      context.addArc(center: CGPoint(x: circleCenter.x, y: circleCenter.y),
+        radius: CGFloat(0.5 * scale),
+        startAngle: 0.0,
+        endAngle: CGFloat.pi,
+        clockwise: false
+      )
+      context.closePath()
+      context.setStrokeColor(red: 0.1, green: 0.0, blue: 0.2, alpha: 1.0)
+      context.setLineWidth(2.0)
+      context.drawPath(using: .stroke)
+    }
 
   }
 

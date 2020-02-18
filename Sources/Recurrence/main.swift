@@ -1,7 +1,7 @@
 import Foundation
 import CoreGraphics
 import BilliardLib
-
+/*
 let applyTransform = false
 let recursionDepth = 1
 //let apex = Vec2(
@@ -34,7 +34,7 @@ let apex = Vec2(
 
 func makeTree() -> Tree<Data> {
   //let phaseMap = QuadPhaseMap(apex: apex)
-  let phaseMap = DiscPhaseMap(apexOverBase: apex)
+  let phaseMap = DoubleDiscPhaseMap(apexOverBase: apex)
   //let phaseMap = MinimalTrianglePhaseMap(apex: apex)
 
   let flipRegion = SphericalPolygon.fromConstraints([
@@ -74,7 +74,7 @@ func makeTree() -> Tree<Data> {
       } else if let parentFlipDepth = parent.data.flipDepth {
         flipDepth = parentFlipDepth + 1
       }*/
-      let region: DiscPhaseMap<k>.Region = regions[i]!
+      let region: DoubleDiscPhaseMap<k>.Region = regions[i]!
       let childPolygon = parentPolygon.intersect(region.polygon)//regions[i].polygon)
       if childPolygon.isEmpty() {
         return nil
@@ -221,3 +221,4 @@ func propagateTrajectory() {
 let root = makeTree()
 renderTree(root)
 
+*/

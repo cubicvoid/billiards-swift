@@ -90,7 +90,7 @@ public enum Singularity: Hashable {
   }
 }
 
-public final class Singularities<k>: CanonicalNegation {
+public final class Singularities<k> {//}: CanonicalNegation {
   private let v0, v1: k
 
   public init(_ v0: k, _ v1: k) {
@@ -98,9 +98,9 @@ public final class Singularities<k>: CanonicalNegation {
     self.v1 = v1
   }
 
-  public static prefix func -(_ t: Singularities<k>) -> Singularities<k> {
+  /*public static prefix func -(_ t: Singularities<k>) -> Singularities<k> {
     return Singularities(t.v1, t.v0)
-  }
+  }*/
   
   public init(s0: k, s1: k) {
     v0 = s0
