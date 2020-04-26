@@ -190,7 +190,6 @@ public class DiscPathEdge<k: Field & Comparable> {
 
     let rotation = billiards.rotation[orientation.to]
     let maxTurnMagnitude = rotation.maxTurnMagnitudeForBound(.pi)
-
     // The offset of the starting boundary apex from the center of the
     // target disc.
     var vZero: Vec2<k>

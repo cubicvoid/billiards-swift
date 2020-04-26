@@ -20,7 +20,7 @@
 
 // Returns a trajectory in the xy plane expressed as its normal in the
 // containing xyz spherical space.
-func RandomFlipTrajectory<k: Field & Comparable>(billiards: BilliardsData<k>) -> Vec3<k> {
+func RandomFlipTrajectory<k: Field & Comparable & Numeric>(billiards: BilliardsData<k>) -> Vec3<k> {
   let leftNum = Int(try! RandomInt(bits: 32))
   let leftCoeff = k(leftNum, over: 1 << 32)
   let rightNum = Int(try! RandomInt(bits: 32))
@@ -50,9 +50,10 @@ public class TrajectorySearch<k: Field & Comparable & Numeric> {
 
   //public func search(trajectory: Trajectory<k>) -> TurnPath? {
   public func search(billiards: BilliardsData<k>) -> TurnPath? {
-    let attemptCount = 2
+    print("search(apex = \(billiards.apex.asDoubleVec()))")
+    let attemptCount = 100
     // one step is two turns, one around each singularity.
-    let stepCount = 5
+    let stepCount = 50
     let startingCoords = Singularities(
       s0: Vec2<k>.origin,
       s1: Vec2(x: k.one, y: k.zero))
@@ -62,7 +63,6 @@ public class TrajectorySearch<k: Field & Comparable & Numeric> {
       var turns: [Int] = []
       // the base (center) edge in the current quad
       var edge = DiscPathEdge(billiards: billiards, coords: startingCoords)
-      print("trajectory: \(trajectory)")
       var angles = Singularities(s0: 0, s1: 0)
       for _ in 1...stepCount {
         // All our paths are listed with turns around S1 first.
@@ -78,13 +78,15 @@ public class TrajectorySearch<k: Field & Comparable & Numeric> {
         if angles[.S0] == 0 && angles[.S1] == 0 {
           // possible cycle
           let feasibility = SimpleCycleFeasibility(path: turns)
-          guard let _ = feasibility.forData(billiards)
+          guard let result = feasibility.forData(billiards)
           else { continue }
-          return try! TurnPath(turns: turns)
+          if result.margin > k.zero {
+            print("path found: \(turns)")
+            return try! TurnPath(turns: turns)
+          }
         }
       }
     }
-    print("Searching apex: \(billiards.apex)")
     return nil
   }
 

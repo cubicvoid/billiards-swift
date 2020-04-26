@@ -59,8 +59,7 @@ public class UnitPowerCache<k: Field & Comparable & CustomStringConvertible> {
       if let value = _valueForBound(angleBound) {
         return value
       }
-      let prevPower = _cache.last!
-      _cache.append(prevPower.complexMul(base))
+      let _ = pow(_cache.count)
     }
   }
 
