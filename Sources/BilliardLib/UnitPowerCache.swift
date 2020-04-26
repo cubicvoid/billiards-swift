@@ -19,10 +19,12 @@ public class UnitPowerCache<k: Field & Comparable & CustomStringConvertible> {
     _cache = [Vec2(x: k.one, y: k.zero), base]
   }
 
-  public func power(_ n: Int, matchesAngleBound bound: AngleBound) -> Bool {
-    switch bound {
-      case .none:
-        return true
+  public func power(_ n: Int, matchesAngleBound bound: AngleBound?) -> Bool {
+    guard let b = bound
+    else {
+      return true
+    }
+    switch b {
       case .pi:
         if let logPi = _logPi {
           return n <= logPi
@@ -42,11 +44,31 @@ public class UnitPowerCache<k: Field & Comparable & CustomStringConvertible> {
     }
   }
 
-  public func pow(_ n: Int) -> Vec2<k> {
-    return pow(n, angleBound: .none)!
+  private func _valueForBound(_ angleBound: AngleBound) -> Int? {
+    switch angleBound {
+      case .pi:
+        return _logPi
+      case .twoPi:
+        return _log2Pi
+    }
   }
 
-  public func pow(_ exponent: Int, angleBound: AngleBound) -> Vec2<k>? {
+  // greedily compute the exponents up to the given bound.
+  public func maxTurnMagnitudeForBound(_ angleBound: AngleBound) -> Int {
+    while true {
+      if let value = _valueForBound(angleBound) {
+        return value
+      }
+      let prevPower = _cache.last!
+      _cache.append(prevPower.complexMul(base))
+    }
+  }
+
+  public func pow(_ n: Int) -> Vec2<k> {
+    return pow(n, angleBound: nil)!
+  }
+
+  public func pow(_ exponent: Int, angleBound: AngleBound?) -> Vec2<k>? {
     if exponent < 0 {
       return pow(-exponent, angleBound: angleBound)?.complexConjugate()
     }

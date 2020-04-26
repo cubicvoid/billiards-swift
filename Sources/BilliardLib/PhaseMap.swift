@@ -136,7 +136,6 @@ public class QuadPhaseMap<
 }
 
 public enum AngleBound {
-  case none
   case pi
   case twoPi
 }
@@ -153,16 +152,16 @@ public class DiscPhaseMap<k: Field & Comparable & CustomStringConvertible> {
   public typealias Region = PhaseMapRegion<k>
 
   public init(apexOverBase apex: Vec2<k>) {
-    let vertex = BaseVertexData(apexOverBase: apex)
+    //let vertex = BaseVertexData(apexOverBase: apex)
     
-    let maxTurns = vertex.maxTurnAroundSingularity
+    //let maxTurns = vertex.maxTurnAroundSingularity
     
     let base = Singularities(
       Vec2(x: -apex.x / apex.y, y: k.zero),
       Vec2(x: (k.one - apex.x) / apex.y, y: k.zero))
       //Vec2.origin, Vec2(x: k.one, y: k.zero))
     
-    var regions: [Index: Region] = [:]
+    //var regions: [Index: Region] = [:]
 
     /*var nearConstrainedPoly = SphericalPolygon<k>.fullSphere
     for turnDegree in -maxTurns...maxTurns {
@@ -219,7 +218,7 @@ public class DiscPhaseMap<k: Field & Comparable & CustomStringConvertible> {
 
     self.base = base
     self.apex = apex
-    self.regions = regions
+    self.regions = [:]//regions
   }
 }
 

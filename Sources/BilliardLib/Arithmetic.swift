@@ -18,10 +18,6 @@ public enum Sign {
     self = v.canonicalSign()
   }
 
-  public enum SignError: Error {
-    case zeroHasNoSign
-  }
-
   public func isPositive() -> Bool {
     return self == .positive
   }

@@ -26,6 +26,9 @@ class Commands {
   }
 }
 
+// ScanParams expects an array of string arguments of the form
+// "key:value" and returns a dictionary with the corresponding
+// keys and values.
 func ScanParams(_ args: [String]) -> [String: String] {
   var results: [String: String] = [:]
   for arg in args {
@@ -127,6 +130,22 @@ class PointSetCommands {
     }
   }
 
+  func cmd_search(_ args: [String]) {
+    print("search")
+    let params = ScanParams(args)
+    guard let name = params["name"]
+    else {
+      print("pointset search: expected name\n")
+      return
+    }
+    let ts = TrajectorySearch<GmpRational>()
+    let pointSet = try! pointSetManager.load(name: name)
+    for point in pointSet.elements {
+      let result = ts.search(billiards: BilliardsData(apex: point))
+      //print("searching point: \(point)")
+    }
+  }
+
   func cmd_plot(_ args: [String]) {
     let params = ScanParams(args)
     guard let name = params["name"]
@@ -149,7 +168,11 @@ class PointSetCommands {
     }
 
     //let filter = PathFilter(path: [-2, 2, 2, -2])
-    let feasibility = PathFeasibility(path: [-2, 2, 2, -2])
+    //let feasibility = PathFeasibility(path: [-2, 2, 2, -2])
+    //let path = [-2, 2, 2, -2]
+    //let path = [4, -3, -5, 3, -4, -4, 5, 4]
+    let path = [3, -1, 1, -1, -3, 1, -2, 1, -3, -1, 1, -1, 3, 2]
+    let feasibility = SimpleCycleFeasibility(path: path)
 
     ContextRenderToURL(outputURL, width: width, height: height)
     { (context: CGContext) in
@@ -158,12 +181,21 @@ class PointSetCommands {
         //print("point \(i)")
         i += 1
         let modelCoords = point//point.asDoubleVec()
-        let result = feasibility.forApex(modelCoords)
-        guard let color: CGColor = colorForResult(result)
+        let data = BilliardsData(apex: modelCoords)
+        guard let result = feasibility.forData(data)
+        else {
+          continue
+        }
+
+        /*if !result.feasible {
+          continue
+        }*/
+        let color = result.color()// CGColor(red: 0.2, green: 0.2, blue: 0.8, alpha: 0.6)
+        /*guard let color: CGColor = colorForResult(result)
         else {
         //if !filter.includePoint(modelCoords) {//!filterPoint(modelCoords) {
           continue
-        }
+        }*/
         let imageCoords = toImageCoords(modelCoords.asDoubleVec())
         
         context.beginPath()
@@ -228,6 +260,8 @@ class PointSetCommands {
         cmd_create(Array(args[1...]))
       case "plot":
         cmd_plot(Array(args[1...]))
+      case "search":
+        cmd_search(Array(args[1...]))
       default:
         print("Unrecognized command '\(command)'")
     }

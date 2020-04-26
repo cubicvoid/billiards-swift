@@ -1,6 +1,163 @@
 import Foundation
 
-import BilliardLib
+// SimpleCycleFeasibility computes "cycle feasibility" of a path: whether a
+// given combinatorial path induces a periodic billiard trajectory on a given
+// triangle.
+// this is a reference implementation using completely "constructive" methods
+// (meaning no explicit use of phase space): compute the coordinates of all
+// boundary vertices, project them all orthogonally to the path offset, check
+// whether the upper and lower boundaries have a positive separation.
+public class SimpleCycleFeasibility {
+  let path: [Int]
+
+  public init(path: [Int]) {
+    self.path = path
+  }
+
+  public func forData<k: Field & Comparable & Numeric>(_ billiards: BilliardsData<k>) -> Result<k>? {
+    var edge = DiscPathEdge(
+      billiards: billiards,
+      coords: Singularities(s0: Vec2<k>.origin, s1: Vec2(k.one, k.zero)))
+
+    var leftBoundaries: [Vec2<k>] = []
+    var rightBoundaries: [Vec2<k>] = []
+
+    for degree in path {
+      let turnSign = Sign.of(degree)!
+      guard let newEdge = edge.reversed().turnedBy(degree, angleBound: .pi)
+      else {
+        // no feasible path can cover more than pi of a disc boundary
+        return nil
+      }
+      edge = newEdge
+      switch turnSign {
+        case .positive:
+        leftBoundaries.append(edge.fromCoords())
+        case .negative:
+        rightBoundaries.append(edge.fromCoords())
+      }
+      leftBoundaries.append(edge.apexForSide(.left))
+      rightBoundaries.append(edge.apexForSide(.right))
+    }
+    let offset = edge.fromCoords()
+
+    // the vector orthogonal to the offset. higher inner product with this
+    // vector means further left relative to the offset trajectory.
+    let offsetNorm = Vec2(-offset.y, offset.x)
+
+    let leftHeights = leftBoundaries.map(offsetNorm.dot)
+    let rightHeights = rightBoundaries.map(offsetNorm.dot)
+
+    return Result(
+      margin: leftHeights.min()! - rightHeights.max()!,
+      path: path, data: billiards)
+  }
+
+  public class Result<k: Field & Comparable & Numeric> {
+    private let path: [Int]
+    private let data: BilliardsData<k>
+    public let margin: k
+
+    public var feasible: Bool {
+      return margin > k.zero
+    }
+
+    init(margin: k, path: [Int], data: BilliardsData<k>) {
+      self.margin = margin
+      self.path = path
+      self.data = data
+    }
+
+    public func color() -> CGColor {
+      let expectedMargin = data.apexOverBase[.forward]!.y / k(path.count)
+
+      var hue: Vec3<Double>
+      var ratio: k
+      if margin > k.zero {
+        hue = Vec3(0.0, 0.0, 0.5)
+        ratio = margin / expectedMargin
+      } else {
+        hue = Vec3(0.4, 0.4, 0.0)
+        ratio = -margin / expectedMargin
+      }
+      let r = ratio.asDouble()
+      let saturation = min(r / (r + 15.0), 0.8)
+      //let white = Vec3(0.85, 0.85, 0.85)
+      let white = Vec3(1.0, 1.0, 1.0)
+      let color = hue + saturation * (white - hue)
+      return CGColor(
+        red: CGFloat(color.x),
+        green: CGFloat(color.y),
+        blue: CGFloat(color.z),
+        alpha: 0.6)
+      //let saturation = 
+      //return hue
+    }
+  }
+}
+
+
+public class CycleFeasibility {
+  public class Result {
+    // "cycle" feasibility means feasible for an explicit cyclic trajectory,
+    // or equivalently, that any finite number of repetitions of the path
+    // induces a nonempty feasible region.
+    // this is as opposed to "path" feasibility which requires that _some_
+    // feasible trajectory induces the given combinatorial path, but does
+    // not require that it be parallel to the path offset. equivalently "path
+    // feasibility" means the given path induces a nonempty feasible region.
+    // unlike cycle feasibility, path feasibility is not invariant under
+    // rotations (i.e. reorderings) of the same path.
+    //
+    // in this context, the results are further refined by 
+    /*public let baseFeasible: Bool
+    public let apexFeasible: Bool
+    public let feasible: Bool*/
+  }
+
+  let path: [Int]
+
+  init(path: [Int]) {
+    self.path = path
+  }
+
+  func forData<k: Field & Comparable>(_ billiards: BilliardsData<k>) -> Bool {
+    var edge = DiscPathEdge(
+      billiards: billiards,
+      coords: Singularities(s0: Vec2<k>.origin, s1: Vec2(k.one, k.zero)))
+
+    var leftBoundaries: [Vec2<k>] = []
+    var rightBoundaries: [Vec2<k>] = []
+
+    for degree in path {
+      let turnSign = Sign.of(degree)!
+      guard let newEdge = edge.reversed().turnedBy(degree, angleBound: .pi)
+      else {
+        // no feasible path can cover more than pi of a disc boundary
+        return false
+      }
+      edge = newEdge
+      switch turnSign {
+        case .positive:
+        leftBoundaries.append(edge.fromCoords())
+        case .negative:
+        rightBoundaries.append(edge.fromCoords())
+      }
+      leftBoundaries.append(edge.apexForSide(.left))
+      rightBoundaries.append(edge.apexForSide(.right))
+    }
+    let offset = edge.fromCoords()
+
+    // the vector orthogonal to the offset. higher inner product with this
+    // vector means further left relative to the offset trajectory.
+    let offsetNorm = Vec2(-offset.y, offset.x)
+
+    let leftHeights = leftBoundaries.map(offsetNorm.dot)
+    let rightHeights = rightBoundaries.map(offsetNorm.dot)
+
+    return leftHeights.min()! > rightHeights.max()!
+  }
+}
 
 public class PathFeasibility {
   let path: [Int]

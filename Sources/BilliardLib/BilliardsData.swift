@@ -62,18 +62,29 @@ public class BilliardsParamsDeprecated<k: Field & Comparable> {
 }
 
 public class BilliardsData<k: Field & Comparable> {
-  public let apexOverBase: Singularities<Vec2<k>>
+  // apex is the main input parameter. It is specified relative to the base
+  // edge from (0,0) to (1,0), and thus for our purposes is usually in the range
+  // 0 < x < 1 and 0 < y < 1/2, though values outside that range are still valid
+  // whenever they make sense.
+  public let apex: Vec2<k>
+
+  // apexOverBase is the complex number (represented as a Vec2)
+  // to multiply the base edge by, in the given orientation, to
+  // get the vector from the same source vertex to the apex.
+  public let apexOverBase: [Singularity.Orientation: Vec2<k>]
+  //public let apexOverBase: Singularities<Vec2<k>>
   //public let maxTurnAroundSingularity: Singularities<Int>
 
 
   public let rotation: Singularities<UnitPowerCache<k>>
   
-  public init(apexOverBase: Singularities<Vec2<k>>) {
+  public init(apexOverBase: [Singularity.Orientation: Vec2<k>]) {
+    self.apex = apexOverBase[.forward]!
     self.apexOverBase = apexOverBase
     self.rotation = Singularities(
       // Reorient the relative apexes so they're both widdershins
-      s0: apexOverBase[.S0],
-      s1: apexOverBase[.S1].complexConjugate()
+      s0: apexOverBase[.forward]!,
+      s1: apexOverBase[.backward]!.complexConjugate()
     ).map { apex in
       // reflection thru each edge rotates the base by the apex over its
       // conjugate
@@ -86,10 +97,9 @@ public class BilliardsData<k: Field & Comparable> {
   }
   
   public convenience init(apex: Vec2<k>) {
-    self.init(apexOverBase: Singularities(
-        s0: apex,
-        s1: Vec2(x: k.one - apex.x, y: -apex.y))
-    )
+    self.init(apexOverBase: [
+      .forward: apex,
+      .backward: Vec2(x: k.one - apex.x, y: -apex.y)])
   }
   
   /*public func rotationVectorAroundSingularity(
