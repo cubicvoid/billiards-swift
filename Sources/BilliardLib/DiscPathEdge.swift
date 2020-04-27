@@ -202,12 +202,12 @@ public class DiscPathEdge<k: Field & Comparable> {
   
     if centerSide == .left {
       // widdershins, a positive turn
-      vZero = self.apexForSide(.right)
+      vZero = self.apexForSide(.right) - center
       leftBound = maxTurnMagnitude
       rightBound = 0
     } else {
       // clockwise, a negative turn
-      vZero = self.apexForSide(.left)
+      vZero = self.apexForSide(.left) - center
       leftBound = 0
       rightBound = -maxTurnMagnitude
     }
@@ -237,7 +237,7 @@ func OffsetOfCoords<k: Field>(_ v: Vec2<k>, fromTrajectory t: Vec3<k>) -> k {
   return v.x * t.x + v.y * t.y + t.z
 }
 
-func PointSide<k: Field & Comparable>(_ p: Vec2<k>, ofTrajectory t: Vec3<k>) -> Side? {
+public func PointSide<k: Field & Comparable>(_ p: Vec2<k>, ofTrajectory t: Vec3<k>) -> Side? {
   let offset = OffsetOfCoords(p, fromTrajectory: t)
   if offset.isZero() {
     return nil

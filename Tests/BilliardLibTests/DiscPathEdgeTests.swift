@@ -48,4 +48,25 @@ class DiscPathEdgeTests: XCTestCase {
     XCTAssertEqual(edge2.apexForSide(.left), Vec2(x: k(5, over: 2), y: k(1, over: 2)))
     XCTAssertEqual(edge2.apexForSide(.right), Vec2(x: k(5, over: 2), y: k(-1, over: 2)))
   }
+
+  func testNextTurnForTrajectory() {
+    let apex = Vec2(x: k(1, over: 2), y: k(1, over: 2))
+    let billiards = BilliardsData(apex: apex)
+    let base = Singularities(Vec2.origin, Vec2(x: k.one, y: k.zero))
+    let edge0 = DiscPathEdge(
+      billiards: billiards, coords: base,
+      orientation: Singularity.Orientation.to(.S1),
+      rotationCounts: Singularities(s0: 0, s1: 0))
+    
+    let t0 = Vec3(k.zero, k.one, k(-1, over: 4))
+    let t1 = Vec3(k.zero, k.one, k(1, over: 4))
+
+    XCTAssertEqual(edge0.nextTurnForTrajectory(t0), -2)
+    XCTAssertEqual(edge0.nextTurnForTrajectory(t1), 2)
+
+    let t2 = Vec3(-k.one, k.one, k(1, over: 2)) // up and right
+    let t3 = Vec3(k.one, k.one, k(-1, over: 2)) // down and right
+    XCTAssertEqual(edge0.nextTurnForTrajectory(t2), -1)
+    XCTAssertEqual(edge0.nextTurnForTrajectory(t3), 1)
+  }
 }
