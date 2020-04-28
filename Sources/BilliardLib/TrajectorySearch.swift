@@ -40,6 +40,8 @@ func RandomFlipTrajectory<k: Field & Comparable & Numeric>(billiards: BilliardsD
     z: -normal.x * leftCoords.x - normal.y * leftCoords.y)
 }
 
+
+
 public class TrajectorySearch<k: Field & Comparable & Numeric> {
   let options: Options
 
@@ -52,31 +54,28 @@ public class TrajectorySearch<k: Field & Comparable & Numeric> {
   public func search(billiards: BilliardsData<k>) -> TurnPath? {
     print("search(apex = \(billiards.apex.asDoubleVec()))")
     let attemptCount = 100
-    // one step is two turns, one around each singularity.
-    let stepCount = 50
+    let maxStepCount = 100
     let startingCoords = Singularities(
       s0: Vec2<k>.origin,
       s1: Vec2(x: k.one, y: k.zero))
-    attemptLoop: for _ in 1...attemptCount {
+    let firstEdge: DiscPathEdge<k> = DiscPathEdge(billiards: billiards, coords: startingCoords)
+
+    for _ in 1...attemptCount {
       // choose random trajectory
       let trajectory = RandomFlipTrajectory(billiards: billiards)
       var turns: [Int] = []
-      // the base (center) edge in the current quad
-      var edge = DiscPathEdge(billiards: billiards, coords: startingCoords)
       var angles = Singularities(s0: 0, s1: 0)
-      for _ in 1...stepCount {
-        // All our paths are listed with turns around S1 first.
-        for s in [Singularity.S1, Singularity.S0] {
-          guard let turnDegree = edge.nextTurnForTrajectory(trajectory)
-          else { continue attemptLoop }
-          let newAngle = angles[s] + turnDegree
+      for step in firstEdge.stepsForTrajectory(trajectory) {
+        // the current center singularity is the one that the
+        // incoming edge points to
+        let singularity = step.incomingEdge.orientation.to
+        let newAngle = angles[singularity] + step.turnDegree
+        angles = angles.withValue(newAngle, forSingularity: singularity)
+        turns.append(step.turnDegree)
 
-          edge = edge.turnedBy(turnDegree)
-          angles = angles.withValue(newAngle, forSingularity: s)
-          turns.append(turnDegree)
-        }
         if angles[.S0] == 0 && angles[.S1] == 0 {
           // possible cycle
+          print("possible cycle")
           let feasibility = SimpleCycleFeasibility(path: turns)
           guard let result = feasibility.forData(billiards)
           else { continue }
@@ -84,6 +83,10 @@ public class TrajectorySearch<k: Field & Comparable & Numeric> {
             print("path found: \(turns)")
             return try! TurnPath(turns: turns)
           }
+        }
+
+        if turns.count >= maxStepCount {
+          break
         }
       }
     }

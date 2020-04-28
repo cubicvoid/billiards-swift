@@ -1,3 +1,5 @@
+import Foundation
+
 public enum Side: CanonicalNegation {
   case left
   case right
@@ -92,7 +94,7 @@ public class FanPathEdgeDeprecated<k: Field & Comparable> {
   }
 }
 
-public class DiscPathEdge<k: Field & Comparable> {
+public class DiscPathEdge<k: Field & Comparable > {
   public var coords: Singularities<Vec2<k>>
   public var orientation: Singularity.Orientation
   public var rotationCounts: Singularities<Int>
@@ -145,7 +147,7 @@ public class DiscPathEdge<k: Field & Comparable> {
   }
   
   // result is guaranteed to be non-nil if angleBound is nil
-  public func turnedBy(_ turnDegree: Int, angleBound: AngleBound?) -> DiscPathEdge<k>? {
+  public func turnedBy(_ turnDegree: Int, angleBound: AngleBound?) -> DiscPathEdge? {
     guard let rotationCoeff =
         billiards.rotation[orientation.from].pow(turnDegree, angleBound: angleBound)
     else { return nil }
@@ -230,6 +232,52 @@ public class DiscPathEdge<k: Field & Comparable> {
       return leftBound
     }
     return rightBound
+  }
+
+  public func stepsForTrajectory(_ t: Vec3<k>) -> StepIterator {
+    return StepIterator(firstEdge: self, trajectory: t)
+  }
+
+  public class Step {
+    public let incomingEdge: DiscPathEdge
+    public let outgoingEdge: DiscPathEdge
+    public let turnDegree: Int
+
+    init(incomingEdge: DiscPathEdge, outgoingEdge: DiscPathEdge, turnDegree: Int) {
+      self.incomingEdge = incomingEdge
+      self.outgoingEdge = outgoingEdge
+      self.turnDegree = turnDegree
+    }
+  }
+
+  public class StepIterator: Sequence, IteratorProtocol {
+    public typealias Element = Step
+    
+    private let trajectory: Vec3<k>
+    private var currentEdge: DiscPathEdge
+
+    init(firstEdge: DiscPathEdge, trajectory: Vec3<k>) {
+      self.trajectory = trajectory
+      self.currentEdge = firstEdge
+    }
+
+    public func next() -> Step? {
+      guard let turnDegree = currentEdge.nextTurnForTrajectory(trajectory)
+      else { return nil }
+      guard let nextEdge = currentEdge.reversed().turnedBy(turnDegree, angleBound: .pi)
+      else {
+        print("Error (StepIterator): turnedBy should never fail when the input came from nextTurnForTrajectory")
+        print("currentEdge: \(currentEdge)")
+        print("trajectory: \(trajectory)")
+        print("turnDegree: \(turnDegree)")
+        print("max turn degree: \(currentEdge.billiards.rotation[currentEdge.orientation.to].maxTurnMagnitudeForBound(.pi))")
+        exit(1)
+        //return nil
+      }
+      let step = Step(incomingEdge: currentEdge, outgoingEdge: nextEdge, turnDegree: turnDegree)
+      self.currentEdge = nextEdge
+      return step
+    }
   }
 }
 

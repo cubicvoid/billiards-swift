@@ -131,3 +131,9 @@ public final class Singularities<k> {//}: CanonicalNegation {
     return Singularities<T>(f(v0), f(v1))
   }
 }
+
+extension Singularities: CustomStringConvertible where k: CustomStringConvertible {
+  public var description: String {
+    return "(S0 -> \(self[.S0]), S1 -> \(self[.S1]))"
+  }
+}

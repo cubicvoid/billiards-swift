@@ -21,23 +21,22 @@ public class UnitPowerCache<k: Field & Comparable & CustomStringConvertible> {
 
   public func power(_ n: Int, matchesAngleBound bound: AngleBound?) -> Bool {
     guard let b = bound
-    else {
-      return true
-    }
+    else { return true }
+    let magnitude = abs(n)
     switch b {
       case .pi:
         if let logPi = _logPi {
-          return n <= logPi
+          return magnitude <= logPi
         }
         return true
       case .twoPi:
         if let log2Pi = _log2Pi {
-          return n <= log2Pi
+          return magnitude <= log2Pi
         }
         if let logPi = _logPi {
           // assume the most permissive match (highest possible bound) until
           // we actually compute that high
-          return n <= 2 * logPi
+          return magnitude <= 2 * logPi
         }
         // we have no information, so we match with anything.
         return true
@@ -71,8 +70,9 @@ public class UnitPowerCache<k: Field & Comparable & CustomStringConvertible> {
     if exponent < 0 {
       return pow(-exponent, angleBound: angleBound)?.complexConjugate()
     }
-    guard power(exponent, matchesAngleBound: angleBound)
-    else { return nil }
+    if !power(exponent, matchesAngleBound: angleBound) {
+      return nil
+    }
 
     while exponent >= _cache.count {
       let prevPower = _cache.last!
