@@ -1,5 +1,47 @@
 import Foundation
 
+public class SimpleCycleFeasibilityResult<k: Field & Comparable & Numeric> {
+  private let turns: [Int]
+  private let billiardsData: BilliardsData<k>
+  public let margin: k
+
+  public var feasible: Bool {
+    return margin > k.zero
+  }
+
+  init(margin: k, turns: [Int], billiardsData: BilliardsData<k>) {
+    self.margin = margin
+    self.turns = turns
+    self.billiardsData = billiardsData
+  }
+
+  public func color() -> CGColor {
+    let expectedMargin = billiardsData.apex.y / k(turns.count)
+
+    var hue: Vec3<Double>
+    var ratio: k
+    if margin > k.zero {
+      hue = Vec3(0.0, 0.0, 0.5)
+      ratio = margin / expectedMargin
+    } else {
+      hue = Vec3(0.4, 0.4, 0.0)
+      ratio = -margin / expectedMargin
+    }
+    let r = ratio.asDouble()
+    let saturation = min(r / (r + 15.0), 0.8)
+    //let white = Vec3(0.85, 0.85, 0.85)
+    let white = Vec3(1.0, 1.0, 1.0)
+    let color = hue + saturation * (white - hue)
+    return CGColor(
+      red: CGFloat(color.x),
+      green: CGFloat(color.y),
+      blue: CGFloat(color.z),
+      alpha: 0.6)
+    //let saturation = 
+    //return hue
+  }
+}
+
 // SimpleCycleFeasibility computes "cycle feasibility" of a path: whether a
 // given combinatorial path induces a periodic billiard trajectory on a given
 // triangle.
@@ -7,11 +49,53 @@ import Foundation
 // (meaning no explicit use of phase space): compute the coordinates of all
 // boundary vertices, project them all orthogonally to the path offset, check
 // whether the upper and lower boundaries have a positive separation.
-public class SimpleCycleFeasibility {
-  let path: [Int]
 
-  public init(path: [Int]) {
-    self.path = path
+public func SimpleCycleFeasibilityForTurns<k: Field & Comparable & Numeric>(
+    _ turns: [Int], billiardsData billiards: BilliardsData<k>
+) -> SimpleCycleFeasibilityResult<k>? {
+  var edge = DiscPathEdge(
+    billiards: billiards,
+    coords: Singularities(s0: Vec2<k>.origin, s1: Vec2(k.one, k.zero)))
+
+  var leftBoundaries: [Vec2<k>] = []
+  var rightBoundaries: [Vec2<k>] = []
+
+  for degree in turns {
+    let turnSign = Sign.of(degree)!
+    guard let newEdge = edge.reversed().turnedBy(degree, angleBound: .pi)
+    else {
+      // no feasible path can cover more than pi of a disc boundary
+      return nil
+    }
+    edge = newEdge
+    switch turnSign {
+      case .positive:
+      leftBoundaries.append(edge.fromCoords())
+      case .negative:
+      rightBoundaries.append(edge.fromCoords())
+    }
+    leftBoundaries.append(edge.apexForSide(.left))
+    rightBoundaries.append(edge.apexForSide(.right))
+  }
+  let offset = edge.fromCoords()
+
+  // the vector orthogonal to the offset. higher inner product with this
+  // vector means further left relative to the offset trajectory.
+  let offsetNorm = Vec2(-offset.y, offset.x)
+
+  let leftHeights = leftBoundaries.map(offsetNorm.dot)
+  let rightHeights = rightBoundaries.map(offsetNorm.dot)
+
+  return SimpleCycleFeasibilityResult(
+    margin: leftHeights.min()! - rightHeights.max()!,
+    turns: turns, billiardsData: billiards)
+}
+
+public class SimpleCycleFeasibility {
+  let turns: [Int]
+
+  public init(turns: [Int]) {
+    self.turns = turns
   }
 
   public func forData<k: Field & Comparable & Numeric>(_ billiards: BilliardsData<k>) -> Result<k>? {
@@ -22,7 +106,7 @@ public class SimpleCycleFeasibility {
     var leftBoundaries: [Vec2<k>] = []
     var rightBoundaries: [Vec2<k>] = []
 
-    for degree in path {
+    for degree in turns {
       let turnSign = Sign.of(degree)!
       guard let newEdge = edge.reversed().turnedBy(degree, angleBound: .pi)
       else {
@@ -50,11 +134,11 @@ public class SimpleCycleFeasibility {
 
     return Result(
       margin: leftHeights.min()! - rightHeights.max()!,
-      path: path, data: billiards)
+      turns: turns, data: billiards)
   }
 
   public class Result<k: Field & Comparable & Numeric> {
-    private let path: [Int]
+    private let turns: [Int]
     private let data: BilliardsData<k>
     public let margin: k
 
@@ -62,14 +146,14 @@ public class SimpleCycleFeasibility {
       return margin > k.zero
     }
 
-    init(margin: k, path: [Int], data: BilliardsData<k>) {
+    init(margin: k, turns: [Int], data: BilliardsData<k>) {
       self.margin = margin
-      self.path = path
+      self.turns = turns
       self.data = data
     }
 
     public func color() -> CGColor {
-      let expectedMargin = data.apexOverBase[.forward]!.y / k(path.count)
+      let expectedMargin = data.apexOverBase[.forward]!.y / k(turns.count)
 
       var hue: Vec3<Double>
       var ratio: k

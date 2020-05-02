@@ -267,12 +267,7 @@ public class DiscPathEdge<k: Field & Comparable > {
       guard let nextEdge = currentEdge.reversed().turnedBy(turnDegree, angleBound: .pi)
       else {
         print("Error (StepIterator): turnedBy should never fail when the input came from nextTurnForTrajectory")
-        print("currentEdge: \(currentEdge)")
-        print("trajectory: \(trajectory)")
-        print("turnDegree: \(turnDegree)")
-        print("max turn degree: \(currentEdge.billiards.rotation[currentEdge.orientation.to].maxTurnMagnitudeForBound(.pi))")
-        exit(1)
-        //return nil
+        return nil
       }
       let step = Step(incomingEdge: currentEdge, outgoingEdge: nextEdge, turnDegree: turnDegree)
       self.currentEdge = nextEdge

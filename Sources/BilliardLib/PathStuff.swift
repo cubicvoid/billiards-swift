@@ -49,9 +49,11 @@ public class TurnPath {
   }
 
   // canonical paths:
-  // - start with a flip from S0 into S1
+  // - start with a flip from S0 into S1 (which, by the next constraint, means the
+  //   path begins and ends with a negative value)
   // - start with a negative (clockwise) turn around S1 (always possible bc we can
-  //   negate all turn signs for any path to get an equivalent one, but this means
+  //   negate all turn signs for any path to get an equivalent one (albeit
+  //   also corresponding to a negated trajectory), but this means
   //   that our canonicalization function needs to account for both possible signs
   //   when establishing other invariants)
   // - starts with a turn of maximum magnitude (given the preceding constraints)

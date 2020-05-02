@@ -141,7 +141,7 @@ class PointSetCommands {
     let ts = TrajectorySearch<GmpRational>()
     let pointSet = try! pointSetManager.load(name: name)
     for point in pointSet.elements {
-      let result = ts.search(billiards: BilliardsData(apex: point))
+      let result = ts.search(apex: point)
       //print("searching point: \(point)")
     }
   }
@@ -171,8 +171,8 @@ class PointSetCommands {
     //let feasibility = PathFeasibility(path: [-2, 2, 2, -2])
     //let path = [-2, 2, 2, -2]
     //let path = [4, -3, -5, 3, -4, -4, 5, 4]
-    let path = [3, -1, 1, -1, -3, 1, -2, 1, -3, -1, 1, -1, 3, 2]
-    let feasibility = SimpleCycleFeasibility(path: path)
+    let turns = [3, -1, 1, -1, -3, 1, -2, 1, -3, -1, 1, -1, 3, 2]
+    let feasibility = SimpleCycleFeasibility(turns: turns)
 
     ContextRenderToURL(outputURL, width: width, height: height)
     { (context: CGContext) in
