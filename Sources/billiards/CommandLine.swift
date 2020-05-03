@@ -138,12 +138,35 @@ class PointSetCommands {
       print("pointset search: expected name\n")
       return
     }
-    let ts = TrajectorySearch<GmpRational>()
+    //let ts = TrajectorySearch<GmpRational>()
     let pointSet = try! pointSetManager.load(name: name)
+    var searchResults: [TrajectorySearchResult] = []
+    var feasibleCount = 0
+    let apexQueue = DispatchQueue(
+      label: "me.faec.billiards.apexQueue",
+      attributes: .concurrent)
+    let resultsQueue = DispatchQueue(label: "me.faec.billiards.resultsQueue")
+    let apexGroup = DispatchGroup()
+    let searchOptions = TrajectorySearchOptions()
+    searchOptions.attemptCount = 200
+    searchOptions.maxPathLength = 100
+    searchOptions.skipExactCheck = true
     for point in pointSet.elements {
-      let result = ts.search(apex: point)
-      //print("searching point: \(point)")
+      apexGroup.enter()
+      apexQueue.async {
+        let result = TrajectorySearchForApex(point, options: searchOptions)
+        resultsQueue.sync(flags: .barrier) {
+          if result.paths.count > 0 {
+            feasibleCount += 1
+          }
+          searchResults.append(result)
+          print("found \(feasibleCount) / \(searchResults.count) so far")
+        }
+        apexGroup.leave()
+      }
     }
+    apexGroup.wait()
+    print("found \(feasibleCount) / \(pointSet.elements.count)")
   }
 
   func cmd_plot(_ args: [String]) {

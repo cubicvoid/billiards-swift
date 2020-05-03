@@ -1,22 +1,4 @@
-/*class Trajectory<k: Field & Comparable> {
-
-  // Create a trajectory centered on a flip. The coefficients represent
-  // the intersection points of the trajectory along each ascending edge
-  // of the triangle, scaled so that 0 is the base vertex and 1 is the
-  // apex.
-  public init(billiards: BilliardsData<k>, riseCoeffs: Singularities<k>) {
-    let leftCoords = Vec2(
-      x: billiards.apex.x * riseCoeffs[.S0],
-      y: billiards.apex.y * riseCoeffs[.S0])
-    let rightCoords = Vec2(
-      x: k.one + (billiards.apex.x - k.one) * riseCoeffs[.S1],
-      y: billiards.apex.y * riseCoeffs[.S1])
-    let offset = rightCoords - leftCoords
-    let normal = offset.cross()
-
-
-  }
-}*/
+import Foundation
 
 // Returns a trajectory in the xy plane expressed as its normal in the
 // containing xyz spherical space.
@@ -40,61 +22,56 @@ func RandomFlipTrajectory<k: Field & Comparable & Numeric>(apex: Vec2<k>) -> Vec
     z: -normal.x * leftCoords.x - normal.y * leftCoords.y)
 }
 
-
-
-public class TrajectorySearch<k: Field & Comparable & Numeric> {
-  let options: Options
-
-  public init(options: Options? = nil) {
-    self.options = options ?? Options()
-    print("Initialized TrajectorySearch")
-  }
-
-  public func search(apex: Vec2<GmpRational>) -> Result {
-    var paths: [TurnPath] = []
-    let apexApprox = apex.asDoubleVec()
-    print("search(apex = \(apexApprox))")
-    let attemptCount = 100
-    let maxStepCount = 100
-    let billiards = BilliardsData(apex: apex)
-    let billiardsApprox = BilliardsData(apex: apexApprox)
+public func TrajectorySearchForApex(
+    _ apex: Vec2<GmpRational>, options opts: TrajectorySearchOptions? = nil
+) -> TrajectorySearchResult {
+  let options = opts ?? TrajectorySearchOptions()
+  var paths: [TurnPath] = []
+  let apexApprox = apex.asDoubleVec()
+  print("search(apex = \(apexApprox))")
+  let billiards = BilliardsData(apex: apex)
+  let billiardsApprox = BilliardsData(apex: apexApprox)
     
-    for _ in 1...attemptCount {
-      // choose random trajectory
-      let trajectory = RandomFlipTrajectory(apex: apexApprox)
-      if let path = SearchTrajectory(trajectory,
-          withBilliardsData: billiardsApprox,
-          forSteps: maxStepCount) {
-        guard let result = SimpleCycleFeasibilityForTurns(path.turns, billiardsData: billiards)
-        else { continue }
+  for _ in 1...options.attemptCount {
+    // choose random trajectory
+    let trajectory = RandomFlipTrajectory(apex: apexApprox)
+    if let path = SearchTrajectory(trajectory,
+        withBilliardsData: billiardsApprox,
+        forSteps: options.maxPathLength) {
+      if options.skipExactCheck {
+        paths.append(path)
+      } else if let result = SimpleCycleFeasibilityForTurns(path.turns, billiardsData: billiards) {
         if result.feasible {
           print("path found: \(path.turns)")
           let path = try! TurnPath(turns: path.turns)
           paths.append(path)
-          if options.stopAfterSuccess {
-            return Result(paths: paths)
-          }
         }
       }
-    }
-    return Result(paths: paths)
-  }
-
-  public class Options {
-    public var stopAfterSuccess: Bool = true
-
-    public init() { }
-  }
-
-  public class Result {
-    public let paths: [TurnPath]
-
-    init(paths: [TurnPath]) {
-      self.paths = paths
+      if paths.count > 0 && options.stopAfterSuccess {
+        return TrajectorySearchResult(paths: paths)
+      }
     }
   }
-
+  return TrajectorySearchResult(paths: paths)
 }
+
+public class TrajectorySearchResult {
+  public let paths: [TurnPath]
+
+  init(paths: [TurnPath]) {
+    self.paths = paths
+  }
+}
+
+public class TrajectorySearchOptions {
+  public var stopAfterSuccess: Bool = true
+  public var skipExactCheck: Bool = false
+  public var attemptCount: Int = 100
+  public var maxPathLength: Int = 100
+
+  public init() { }
+}
+
 
 func SearchTrajectory<k: Field & Comparable & Numeric>(
     _ trajectory: Vec3<k>,
@@ -125,7 +102,7 @@ func SearchTrajectory<k: Field & Comparable & Numeric>(
       guard let result = feasibility.forData(billiards)
       else { continue }
       if result.margin > k.zero {
-        print("path found: \(turns)")
+        print("candidate found: \(turns)")
         return try! TurnPath(turns: turns)
       }
     }
