@@ -15,7 +15,7 @@ public enum Singularity: Hashable {
 		}
 	}
 
-	public enum Orientation: CanonicalSign & Hashable {
+	public enum Orientation: Negatable, Hashable {
 		case forward
 		case backward
 
@@ -42,24 +42,24 @@ public enum Singularity: Hashable {
 
 		public var from: Singularity {
 			switch self {
-				case .forward: return S0
-				case .backward: return S1
+				case .forward: return .S0
+				case .backward: return .S1
 			}
 		}
 
 		public var to: Singularity {
 			switch self {
-				case .forward: return S1
-				case .backward: return S0
+				case .forward: return .S1
+				case .backward: return .S0
 			}
 		}
 
-		public func canonicalSign() -> Sign {
+		/*public func sign() -> Sign {
 			switch self {
 				case .forward: return .positive
 				case .backward: return .negative
 			}
-		}
+		}*/
 
 		public var description: String {
 			switch self {

@@ -1,6 +1,6 @@
 import Foundation
 
-public enum Side: CanonicalNegation {
+public enum Side: Negatable {
 	case left
 	case right
 
@@ -12,89 +12,7 @@ public enum Side: CanonicalNegation {
 	}
 }
 
-public class FanPathEdgeDeprecated<k: Field & Comparable> {
-	public var coords: Singularities<Vec2<k>>
-	public var orientation: Singularity.Orientation
-	public var rotationCounts: Singularities<Int>
-
-	let params: BilliardsParamsDeprecated<k>
-
-	public init(
-			params: BilliardsParamsDeprecated<k>, coords: Singularities<Vec2<k>>,
-			orientation: Singularity.Orientation, rotationCounts: Singularities<Int>) {
-		self.params = params
-		self.coords = coords
-		self.orientation = orientation
-		self.rotationCounts = rotationCounts
-	}
-
-	public convenience init(
-			fromParams params: BilliardsParamsDeprecated<k>,
-			orientation: Singularity.Orientation) {
-		let origin = Vec2<k>.origin
-		let coords = Singularities(
-				origin - params.apexFromBase[.S0] * Sign(of: orientation),
-				origin - params.apexFromBase[.S1] * Sign(of: orientation))
-		self.init(params: params, coords: coords, orientation: orientation,
-				rotationCounts: Singularities(0, 0))
-	}
-
-	public func copy() -> FanPathEdgeDeprecated<k> {
-		return FanPathEdgeDeprecated(
-				params: params, coords: coords, orientation: orientation,
-				rotationCounts: rotationCounts)
-	}
-
-	public func fromCoords() -> Vec2<k> {
-		return coords[orientation.from]
-	}
-
-	public func toCoords() -> Vec2<k> {
-		return coords[orientation.to]
-	}
-
-	public func apexForSide(_ side: Side) -> Vec2<k> {
-		// the apex on the left (widdershins) side of this edge in its starting
-		// position at the origin.
-		let baseCoords = coords[.S0]
-		let baseOffset = coords[.S1] - coords[.S0]
-		let leftApex = params
-				.apexFromBase[.S0]
-				.complexConjugateBySign(Sign(of: orientation))
-		switch side {
-		case .left:
-			return baseCoords + baseOffset.complexMul(leftApex)
-		case .right:
-			return baseCoords + baseOffset.complexMul(leftApex.complexConjugate())
-		}
-	}
-
-	public func turnBy(_ turnDegree: Int) -> FanPathEdgeDeprecated<k> {
-		// We rotate around the singularity we're pointing at
-		/*let turn: Singularity.Turn = orientation.to.turnBy(turnDegree)
-		let rotationCoeff = params.vectorForTurn(turn)
-		let baseOffset = coords[orientation.from] - coords[orientation.to]
-		let newCoords = -Sign(of: orientation) * Singularities(
-				s0: coords[orientation.to],
-				s1: coords[orientation.to] + baseOffset.complexMul(rotationCoeff))
-
-		let newCount = rotationCounts[orientation.to] + turnDegree
-		let newRotationCounts =
-				rotationCounts.withValue(newCount, forSingularity: orientation.to)*/
-
-		return FanPathEdgeDeprecated(
-				params: params,
-				coords: coords,//newCoords,
-				orientation: -orientation,
-				rotationCounts: rotationCounts)//newRotationCounts)
-	}
-
-	public func isAngleZero() -> Bool {
-		return (rotationCounts[.S0] == 0 && rotationCounts[.S1] == 0)
-	}
-}
-
-public class DiscPathEdge<k: Field & Comparable > {
+public class DiscPathEdge<k: Field & Comparable> {
 	public var coords: Singularities<Vec2<k>>
 	public var orientation: Singularity.Orientation
 	public var rotationCounts: Singularities<Int>

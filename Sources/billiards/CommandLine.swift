@@ -140,6 +140,7 @@ class PointSetCommands {
 		}
 		//let ts = TrajectorySearch<GmpRational>()
 		let pointSet = try! pointSetManager.load(name: name)
+		//var pathSet = PathSet()
 		var searchResults: [TrajectorySearchResult] = []
 		var feasibleCount = 0
 		let apexQueue = DispatchQueue(

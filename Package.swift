@@ -22,18 +22,6 @@ let package = Package(
         dependencies: ["BilliardLib", "Logging"]
     ),
     .target(
-        name: "BilliardStats",
-        dependencies: ["BilliardLib"]
-    ),
-    .target(
-        name: "PathStudy",
-        dependencies: ["BilliardLib"]
-    ),
-    .target(
-        name: "FeasiblePaths",
-        dependencies: ["BilliardLib"]
-    ),
-    .target(
         name: "Recurrence",
         dependencies: ["BilliardLib"]
     ),

@@ -1,6 +1,6 @@
 import Foundation
 
-public struct Vec2<R : Ring>: Codable, CanonicalNegation, Equatable {
+public struct Vec2<R : Ring>: Codable, Negatable, Equatable {
   public let x : R
   public let y : R
 
@@ -131,7 +131,7 @@ public extension Vec2 where R: Numeric {
   }
 }
 
-public final class Vec3<R: Ring>: CanonicalNegation, Equatable {
+public final class Vec3<R: Ring>: Negatable, Equatable {
   private let _v: [R]
 
   public init(x: R, y: R, z: R) {

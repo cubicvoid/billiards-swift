@@ -1,12 +1,37 @@
 public struct TurnPath {
 	public let initialOrientation: Singularity.Orientation
 	public let turns: [Int]
+
+}
+
+func rotatePathToIndex(_ index: Int) {
+
 }
 
 public class TurnCycle {
 	public let initialOrientation: Singularity.Orientation
 
-	public init(repeatingPath path: TurnPath) {
+	public enum CycleError: Error {
+		case zeroTurn
+		case oddLengthPath
+		case monotonicPath
+		case nonzeroRotation
+	}
+	public init(repeatingPath path: TurnPath) throws {
+		var lastSign: Sign? = nil
+		for i in path.turns.indices {
+			
+			guard let sign = Sign(of: path.turns[i])
+			else { throw CycleError.zeroTurn }
+
+		}
+		guard let firstIndex = path.turns.indices.first(where: { (i: Int) in
+			i > 0 &&
+			(path.turns[i] > 0) == (path.turns[i - 1] > 0)
+		 })
+		else { throw CycleError.monotonicPath
+		}
+
 		initialOrientation = path.initialOrientation
 	}
 }

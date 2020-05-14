@@ -1,5 +1,5 @@
 
-public final class FanPath: Codable {
+/*public final class FanPath: Codable {
   // turns must have even length. Entry 0 is a fan around singularity index
   // 1 (the default initial state for a FanPathEdge).
   public var turns: [Int]
@@ -25,3 +25,4 @@ public final class FanPath: Codable {
     return strings.joined(separator: " ")
   }
 }
+*/
