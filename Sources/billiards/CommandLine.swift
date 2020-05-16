@@ -164,9 +164,13 @@ class PointSetCommands {
 			let approxAngles = Singularities(
 				s0: Double.pi / (2.0 * atan2(pointApprox.y, pointApprox.x)),
 				s1: Double.pi / (2.0 * atan2(pointApprox.y, 1.0 - pointApprox.x))
-			).map { String(format: "%.3f", $0)}
+			).map { String(format: "%.2f", $0)}
 			let coordsStr = String(
 				format: "(%.4f, %.4f)", pointApprox.x, pointApprox.y)
+			let angleStrs = Singularities(
+				s0: DarkGray("\(approxAngles[.S0])"),
+				s1: "\(approxAngles[.S1])"
+			)
 			let angleStr = String(
 				format: "(S0: \(approxAngles[.S0]), S1: \(approxAngles[.S1]))")
 
@@ -185,14 +189,16 @@ class PointSetCommands {
 					// reset the current line
 					print(ClearCurrentLine(), terminator: "\r")
 
-					let indexStr = Cyan("[\(i)]")
-					print("\(indexStr) \(coordsStr)")
-					print("  log(pi / 2): \(angleStr)")
+					print(Cyan("[\(i)]"))
+					print(Green("  cartesian coords"), coordsStr)
+					print(Green("  angle bounds"))
+					print(DarkGray("    S0: \(approxAngles[.S0])"))
+					print("    S1: \(approxAngles[.S1])")
 					if let cycle = result.shortestCycle {
-						print("  cycle: \(cycle)")
+						print(Green("  cycle"), cycle)
 						feasibleCount += 1
 					} else {
-						print("  no feasible path found")
+						print(Red("  no feasible path found"))
 					}
 					searchResults.append(result)
 					print("found \(feasibleCount) / \(searchResults.count) so far")

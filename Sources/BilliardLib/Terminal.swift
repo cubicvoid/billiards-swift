@@ -2,6 +2,14 @@ public func DarkGray(_ str: String) -> String {
 	return "\u{001B}[30;1m\(str)\u{001B}[0m"
 }
 
+public func Red(_ str: String) -> String {
+	return "\u{001B}[31m\(str)\u{001B}[0m"
+}
+
+public func Green(_ str: String) -> String {
+	return "\u{001B}[32m\(str)\u{001B}[0m"
+}
+
 public func Cyan(_ str: String) -> String {
 	return "\u{001B}[36m\(str)\u{001B}[0m"
 }
