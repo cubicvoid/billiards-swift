@@ -1,5 +1,10 @@
 import Foundation
 import Logging
+#if os(Linux)
+    import Glibc
+#else
+    import Darwin.C
+#endif
 
 import BilliardLib
 
@@ -152,17 +157,47 @@ class PointSetCommands {
 		searchOptions.attemptCount = 25000
 		searchOptions.maxPathLength = 2500
 		searchOptions.skipExactCheck = true
-		for point in pointSet.elements {
+		searchOptions.stopAfterSuccess = false
+		var activeSearches: [Int: Bool] = [:]
+		for (i, point) in pointSet.elements.enumerated() {
+			let pointApprox = point.asDoubleVec()
+			let approxAngles = Singularities(
+				s0: Double.pi / (2.0 * atan2(pointApprox.y, pointApprox.x)),
+				s1: Double.pi / (2.0 * atan2(pointApprox.y, 1.0 - pointApprox.x))
+			).map { String(format: "%.3f", $0)}
+			let coordsStr = String(
+				format: "(%.4f, %.4f)", pointApprox.x, pointApprox.y)
+			let angleStr = String(
+				format: "(S0: \(approxAngles[.S0]), S1: \(approxAngles[.S1]))")
+
 			apexGroup.enter()
 			apexQueue.async {
+				resultsQueue.sync(flags: .barrier) {
+					// starting search
+					activeSearches[i] = true
+				}
 				let result = TrajectorySearchForApexCoords(
 					point, options: searchOptions)
 				resultsQueue.sync(flags: .barrier) {
-					if result.paths.count > 0 {
+					// search is finished
+					activeSearches.removeValue(forKey: i)
+					
+					// reset the current line
+					print(ClearCurrentLine(), terminator: "\r")
+
+					let indexStr = Cyan("[\(i)]")
+					print("\(indexStr) \(coordsStr)")
+					print("  log(pi / 2): \(angleStr)")
+					if let cycle = result.shortestCycle {
+						print("  cycle: \(cycle)")
 						feasibleCount += 1
+					} else {
+						print("  no feasible path found")
 					}
 					searchResults.append(result)
 					print("found \(feasibleCount) / \(searchResults.count) so far")
+					print(" ...still active: \(activeSearches.keys.sorted())...", terminator: "")
+					fflush(stdout)
 				}
 				apexGroup.leave()
 			}

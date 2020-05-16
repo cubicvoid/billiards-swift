@@ -27,47 +27,75 @@ public func TrajectorySearchForApexCoords(
 	options opts: TrajectorySearchOptions? = nil
 ) -> TrajectorySearchResult {
 	let options = opts ?? TrajectorySearchOptions()
-	var paths: [TurnPath] = []
+	var cycles: [TurnCycle] = []
+	var shortestCycle: TurnCycle? = nil
 	let apexCoordsApprox = apexCoords.asDoubleVec()
-	print("search(apex = \(apexCoordsApprox))")
+	//print("search(apex = \(apexCoordsApprox))")
 	let apex = ApexData(coords: apexCoords)
 	let apexApprox = ApexData(coords: apexCoordsApprox)
+
+	func addCycleForPath(_ path: TurnPath) {
+		let cycle = try! TurnCycle(repeatingPath: path)
+		if shortestCycle == nil || cycle.length < shortestCycle!.length {
+			shortestCycle = cycle
+			if !options.allowMultipleResults {
+				// We want to keep the shortest cycle,
+				// so reset the cycles list.
+				cycles = []
+			}
+		}
+		if cycles.isEmpty || options.allowMultipleResults {
+			cycles.append(cycle)
+		}
+	}
 
 	for _ in 1...options.attemptCount {
 		// choose random trajectory
 		let trajectory = RandomFlipTrajectory(apex: apexApprox.coords)
+		var stepCount = options.maxPathLength
+		// If we're only keeping the shortest cycle, then we only
+		// need to search up to the depth of the shortest path
+		// we've found.
+		if shortestCycle != nil && !options.allowMultipleResults {
+			stepCount = min(stepCount, shortestCycle!.length)
+		}
 		if let path = SearchTrajectory(trajectory,
 			withApex: apexApprox,
-			forSteps: options.maxPathLength
+			forSteps: stepCount
 		) {
 			if options.skipExactCheck {
-				paths.append(path)
+				addCycleForPath(path)
 			} else if let result = SimpleCycleFeasibilityForTurnPath(path, apex: apex) {
 				if result.feasible {
-					paths.append(path)
+					addCycleForPath(path)
 				}
 			}
-			if paths.count > 0 && options.stopAfterSuccess {
-				return TrajectorySearchResult(paths: paths)
+			if cycles.count > 0 && options.stopAfterSuccess {
+				return TrajectorySearchResult(
+					cycles: cycles,
+					shortestCycle: shortestCycle)
 			}
 		}
 	}
-	return TrajectorySearchResult(paths: paths)
+	return TrajectorySearchResult(
+		cycles: cycles,
+		shortestCycle: shortestCycle)
 }
 
 public struct TrajectorySearchResult {
-	public let paths: [TurnPath]
+	public let cycles: [TurnCycle]
+	public let shortestCycle: TurnCycle?
 }
 
 public struct TrajectorySearchOptions {
 	public var stopAfterSuccess: Bool = true
+	public var allowMultipleResults: Bool = false
 	public var skipExactCheck: Bool = false
 	public var attemptCount: Int = 100
 	public var maxPathLength: Int = 100
 
 	public init() { }
 }
-
 
 func SearchTrajectory<k: Field & Comparable & Numeric>(
 	_ trajectory: Vec3<k>,
@@ -87,8 +115,7 @@ func SearchTrajectory<k: Field & Comparable & Numeric>(
 		// the current center singularity is the one that the
 		// incoming edge points to
 		let aroundSingularity = step.incomingEdge.orientation.to
-		let newAngle = angles[aroundSingularity] + step.turnDegree
-		angles = angles.withValue(newAngle, forSingularity: aroundSingularity)
+		angles[aroundSingularity] += step.turnDegree
 		turns.append(step.turnDegree)
 
 		if aroundSingularity == .S0 && angles[.S0] == 0 && angles[.S1] == 0 {

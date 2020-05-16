@@ -2,13 +2,42 @@ import XCTest
 
 import BilliardLib
 
-struct CanonicalizationTestCase {
-	let input: [Int]
-	let expected: [Int]
+struct InitTestCase {
+	let turnPath: TurnPath
+	let expectedSegments: [TurnPath]
+	let expectedError: TurnCycle.CycleError? = nil
 }
 
 class TurnCycleTests: XCTestCase {
-	func testAngleBound() {
+	func testInit() {
+		let tests = [
+			InitTestCase(
+				turnPath: TurnPath(
+					initialOrientation: .forward,
+					turns: [-6, 4, 6, -4]),
+				expectedSegments: [
+					TurnPath(
+						initialOrientation: .forward,
+						turns: [6, 4]
+					),
+					TurnPath(
+						initialOrientation: .forward,
+						turns: [6, 4]
+					),
+				]
+			)
+		]
+		for test in tests {
+			let cycle = try! TurnCycle(repeatingPath: test.turnPath)
+			XCTAssertEqual(
+				cycle.monotonicSegments,
+				test.expectedSegments,
+				"Wrong segment list when repeating turn path \(test.turnPath)")
+
+		}
+
+	}
+	/*func testAngleBound() {
 		let testCases = [
 			CanonicalizationTestCase(
 				input: [-2, 2, 2, -2],
@@ -28,7 +57,7 @@ class TurnCycleTests: XCTestCase {
 			let canonical = turnCycle.canonicalized()
 			XCTAssertEqual(canonical.turns, testCase.expected)
 		}
-	}
+	}*/
 
 
 }

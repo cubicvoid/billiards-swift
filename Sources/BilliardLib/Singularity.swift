@@ -78,7 +78,7 @@ public enum Singularity: Hashable {
 			self.degree = degree
 		}
 
-		public static func == (lhs: Singularity.Turn, rhs: Singularity.Turn) -> Bool {
+		public static func ==(lhs: Singularity.Turn, rhs: Singularity.Turn) -> Bool {
 			return lhs.singularity == rhs.singularity && lhs.degree == rhs.degree
 		}
 		
@@ -89,8 +89,8 @@ public enum Singularity: Hashable {
 	}
 }
 
-public final class Singularities<k> {
-	private let v0, v1: k
+public struct Singularities<k> {
+	private var v0, v1: k
 
 	public init(_ v0: k, _ v1: k) {
 		self.v0 = v0
@@ -108,19 +108,27 @@ public final class Singularities<k> {
 	}
 
 	public func withValue(
-		_ v: k, 
+		_ value: k, 
 		forSingularity s: Singularity
 	) -> Singularities<k> {
 		switch s {
-			case .S0: return Singularities(v, self[.S1])
-			case .S1: return Singularities(self[.S0], v)
+			case .S0: return Singularities(value, self[.S1])
+			case .S1: return Singularities(self[.S0], value)
 		}
 	}
 
 	public subscript(index: Singularity) -> k {
-		switch index {
-			case .S0: return v0
-			case .S1: return v1
+		get {
+			switch index {
+				case .S0: return v0
+				case .S1: return v1
+			}
+		}
+		set(newValue) {
+			switch index {
+				case .S0: v0 = newValue
+				case .S1: v1 = newValue
+			}
 		}
 	}
 	
