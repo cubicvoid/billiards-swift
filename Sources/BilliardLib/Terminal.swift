@@ -10,6 +10,10 @@ public func Green(_ str: String) -> String {
 	return "\u{001B}[32m\(str)\u{001B}[0m"
 }
 
+public func Magenta(_ str: String) -> String {
+	return "\u{001B}[35m\(str)\u{001B}[0m"
+}
+
 public func Cyan(_ str: String) -> String {
 	return "\u{001B}[36m\(str)\u{001B}[0m"
 }

@@ -1,4 +1,4 @@
-public struct TurnPath: Hashable {
+public struct TurnPath: Codable, Hashable {
 	public let initialOrientation: Singularity.Orientation
 	public let turns: [Int]
 

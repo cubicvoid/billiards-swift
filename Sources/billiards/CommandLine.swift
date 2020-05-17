@@ -25,9 +25,21 @@ class Commands {
 		case "pointset":
 			let pointSetCommands = PointSetCommands(logger: logger)
 			pointSetCommands.run(Array(args[1...]))
+		case "repl":
+			let repl = BilliardsRepl()
+			repl.run()
 		default:
 			print("Unrecognized command '\(command)'")
 		}
+	}
+}
+
+class BilliardsRepl {
+	public init() {
+	}
+
+	public func run() {
+
 	}
 }
 
@@ -71,14 +83,14 @@ func defaultPointSetName() -> String {
 
 class PointSetCommands {
 	let logger: Logger
-	let pointSetManager: PointSetManager
+	let dataManager: DataManager
 
 	public init(logger: Logger) {
 		self.logger = logger
 		let path = FileManager.default.currentDirectoryPath
 		let dataURL = URL(fileURLWithPath: path).appendingPathComponent("data")
-		pointSetManager = try! PointSetManager(
-			rootURL: dataURL.appendingPathComponent("pointset"),
+		dataManager = try! DataManager(
+			rootURL: dataURL,
 			logger: logger)
 	}
 
@@ -93,11 +105,11 @@ class PointSetCommands {
 		let density = UInt(densityString)!
 		let pointSet = RandomApexesWithGridDensity(density, count: count)
 		logger.info("Generated point set with density: \(density), count: \(count)")
-		try! pointSetManager.save(pointSet, name: name)
+		try! dataManager.savePointSet(pointSet, name: name)
 	}
 
 	func cmd_list() {
-		let sets = try! pointSetManager.list()
+		let sets = try! dataManager.listPointSets()
 		let dateFormatter = DateFormatter()
 		dateFormatter.dateStyle = .short
 		dateFormatter.timeStyle = .short
@@ -129,7 +141,7 @@ class PointSetCommands {
 			print("pointset print: expected name\n")
 			return
 		}
-		let pointSet = try! pointSetManager.load(name: name)
+		let pointSet = try! dataManager.loadPointSet(name: name)
 		for p in pointSet.elements {
 			print("\(p.x),\(p.y)")
 		}
@@ -137,29 +149,36 @@ class PointSetCommands {
 
 	func cmd_search(_ args: [String]) {
 		print("search")
+
+		var searchOptions = TrajectorySearchOptions()
+		searchOptions.attemptCount = 25000
+		searchOptions.maxPathLength = 200//2500
+		searchOptions.skipExactCheck = true
+		searchOptions.stopAfterSuccess = true
+
 		let params = ScanParams(args)
 		guard let name = params["name"]
 		else {
 			print("pointset search: expected name\n")
 			return
 		}
-		//let ts = TrajectorySearch<GmpRational>()
-		let pointSet = try! pointSetManager.load(name: name)
-		//var pathSet = PathSet()
-		var searchResults: [TrajectorySearchResult] = []
-		var feasibleCount = 0
+		let pointSet = try! dataManager.loadPointSet(name: name)
+		let cyclesPath = ["pointset", name,
+			searchOptions.skipExactCheck ? "cyclesApprox" : "cycles"]
+		var shortestCycles: [Int: TurnCycle] =
+			(try? dataManager.loadPath(cyclesPath)) ?? [:]
+		
 		let apexQueue = DispatchQueue(
 			label: "me.faec.billiards.apexQueue",
 			attributes: .concurrent)
 		let resultsQueue = DispatchQueue(label: "me.faec.billiards.resultsQueue")
 		let apexGroup = DispatchGroup()
-		var searchOptions = TrajectorySearchOptions()
-		searchOptions.attemptCount = 25000
-		searchOptions.maxPathLength = 2500
-		searchOptions.skipExactCheck = false
-		searchOptions.stopAfterSuccess = false
+
 		var activeSearches: [Int: Bool] = [:]
-		for (i, point) in pointSet.elements.enumerated() {
+		var searchResults: [Int: TrajectorySearchResult] = [:]
+		var foundCount = 0
+		var updatedCount = 0
+		for (index, point) in pointSet.elements.enumerated() {
 			let pointApprox = point.asDoubleVec()
 			let approxAngles = Singularities(
 				s0: Double.pi / (2.0 * atan2(pointApprox.y, pointApprox.x)),
@@ -176,44 +195,73 @@ class PointSetCommands {
 
 			apexGroup.enter()
 			apexQueue.async {
+				defer { apexGroup.leave() }
+				var knownCycle: TurnCycle? = nil
+				var options = searchOptions
+				var skip = false
+
 				resultsQueue.sync(flags: .barrier) {
 					// starting search
-					activeSearches[i] = true
+					knownCycle = shortestCycles[index]
+					if let lengthBound = knownCycle?.length {
+						if options.stopAfterSuccess {
+							// We already have a cycle for this point
+							//print(ClearCurrentLine(), terminator: "\r")
+							//print("skipping:", Cyan("\(index)"))
+							skip = true
+							return
+						}
+						options.maxPathLength = min(
+							options.maxPathLength, lengthBound - 1)
+					}
+					activeSearches[index] = true
 				}
+				if skip { return }
+
 				let result = TrajectorySearchForApexCoords(
-					point, options: searchOptions)
+					point, options: options)
 				resultsQueue.sync(flags: .barrier) {
 					// search is finished
-					activeSearches.removeValue(forKey: i)
+					activeSearches.removeValue(forKey: index)
+					searchResults[index] = result
 					
 					// reset the current line
 					print(ClearCurrentLine(), terminator: "\r")
 
-					print(Cyan("[\(i)]"))
+					print(Cyan("[\(index)]"))
 					print(Green("  cartesian coords"), coordsStr)
 					print(Green("  angle bounds"))
 					print(DarkGray("    S0: \(approxAngles[.S0])"))
 					print("    S1: \(approxAngles[.S1])")
-					if let cycle = result.shortestCycle {
-						print(Green("  cycle"), cycle)
-						feasibleCount += 1
+					if let oldCycle = knownCycle {
+						if let newCycle = result.shortestCycle {
+							print(Magenta("  replaced cycle"), newCycle)
+							shortestCycles[index] = newCycle
+							updatedCount += 1
+						} else {
+							print(DarkGray("  existing cycle"), oldCycle)
+						}
+					} else if let cycle = result.shortestCycle {
+						print(Green("  found cycle"), cycle)
+						shortestCycles[index] = cycle
+						foundCount += 1
 					} else {
 						print(Red("  no feasible path found"))
 					}
-					searchResults.append(result)
-					print("found \(feasibleCount) / \(searchResults.count) so far. ",
+					print("found \(foundCount), updated \(updatedCount)",
+						"out of \(searchResults.count) so far.",
 						"still active:",
 						Cyan("\(activeSearches.keys.sorted())"),
 						"...",
 						terminator: "")
-					//print(" ...still active: \(activeSearches.keys.sorted())...", terminator: "")
 					fflush(stdout)
 				}
-				apexGroup.leave()
 			}
 		}
 		apexGroup.wait()
-		print("found \(feasibleCount) / \(pointSet.elements.count)")
+		print(ClearCurrentLine(), terminator: "\r")
+		print("found \(foundCount), updated \(updatedCount) out of \(searchResults.count) attempts")
+		try! dataManager.save(shortestCycles, toPath: cyclesPath)
 	}
 
 	func cmd_plot(_ args: [String]) {
@@ -223,7 +271,7 @@ class PointSetCommands {
 			print("pointset plot: expected name\n")
 			return
 		}
-		let pointSet = try! pointSetManager.load(name: name)
+		let pointSet = try! dataManager.loadPointSet(name: name)
 
 		let outputURL = URL(fileURLWithPath: "plot.png")
 		let width = 2000
@@ -241,7 +289,7 @@ class PointSetCommands {
 		//let feasibility = PathFeasibility(path: [-2, 2, 2, -2])
 		//let path = [-2, 2, 2, -2]
 		//let path = [4, -3, -5, 3, -4, -4, 5, 4]
-		let turns = [3, -1, 1, -1, -3, 1, -2, 1, -3, -1, 1, -1, 3, 2]
+		//let turns = [3, -1, 1, -1, -3, 1, -2, 1, -3, -1, 1, -1, 3, 2]
 		//let feasibility = SimpleCycleFeasibility(turns: turns)
 
 		ContextRenderToURL(outputURL, width: width, height: height)
@@ -300,8 +348,8 @@ class PointSetCommands {
 			exit(1)
 		}
 		do {
-			try pointSetManager.delete(name: name)
-			logger.info("Deleted apex set '\(name)'")
+			try dataManager.deletePath(["pointset", name])
+			logger.info("Deleted point set '\(name)'")
 		} catch {
 			logger.error("Couldn't delete point set '\(name)': \(error)")
 		}

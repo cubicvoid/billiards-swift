@@ -27,10 +27,10 @@ public class PointSet: Codable {
 
 // A class that manages the directory of named apex sets that we
 // use for serialization.
-public class PointSetManager {
+public class DataManager {
 	public let rootURL: URL
-	
 	private let logger: Logger
+	public typealias Path = [String]
 
 	public init(rootURL: URL, logger: Logger) throws {
 		try FileManager.default.createDirectory(
@@ -38,74 +38,104 @@ public class PointSetManager {
 			withIntermediateDirectories: true)
 		self.rootURL = rootURL
 		self.logger = logger
-		logger.info("PointSetManager initialized with root [\(rootURL.description)]")
+		logger.info("DataManager initialized with root [\(rootURL.description)]")
 	}
 
-	public func urlForName(_ name: String) -> URL {
-		return rootURL.appendingPathComponent(name)
-	}
-
-	public func load(name: String) throws -> PointSet {
-		do {
-			let metadata = try loadMetadata(name: name)
-			let elementsURL = urlForName(name).appendingPathComponent("elements.json")
-			let data = try Data(contentsOf: elementsURL)
-			let elements = try JSONDecoder().decode([Point].self, from: data)
-			return PointSet(elements: elements, metadata: metadata)
-		} catch {
-			logger.error("Couldn't load apex set '\(name)': \(error)")
-			throw error
+	private func urlForPath(_ path: Path) -> URL {
+		return path.reduce(rootURL) {
+			$0.appendingPathComponent($1)
 		}
 	}
 
-	public func save(_ pointSet: PointSet, name: String) throws {
+	public func save<T: Codable>(
+		_ thing: T, toPath path: Path
+	) throws {
 		do {
-			let url = urlForName(name)
-			try FileManager.default.createDirectory(at: url, withIntermediateDirectories: false)
-			let elementsURL = url.appendingPathComponent("elements.json")
-			let metadataURL = url.appendingPathComponent("metadata.json")
+			if path.count > 0 {
+				// create the containing directory if needed
+				let pathPrefix = Array(path[..<(path.count - 1)])
+				try FileManager.default.createDirectory(
+					at: urlForPath(pathPrefix),
+					withIntermediateDirectories: true)
+			}
+			let url = urlForPath(path)
 			let encoder = JSONEncoder()
-			let elements = try encoder.encode(pointSet.elements)
-			let metadata = try encoder.encode(pointSet.metadata)
-			try elements.write(to: elementsURL)
-			try metadata.write(to: metadataURL)
-			logger.info("Saved apex set '\(name)'")
+			let contents = try encoder.encode(thing)
+			try contents.write(to: url)
+			logger.info("Saved: \(path)")
 		} catch {
-			logger.error("Couldn't save apex set '\(name)': \(error)")
+			logger.error("Couldn't save data to path '\(path)': \(error)")
 			throw error
 		}
 	}
 
-	public func delete(name: String) throws {
-		let url = urlForName(name)
+	public func deletePath(_ path: Path) throws {
+		let url = urlForPath(path)
 		try FileManager.default.removeItem(at: url)
 	}
 
-	public func loadMetadata(name: String) throws -> PointSet.Metadata {
-		let url = urlForName(name).appendingPathComponent("metadata.json")
+	public func loadPath<T: Codable>(_ path: Path) throws -> T {
+		let url = urlForPath(path)
 		let data = try Data(contentsOf: url)
 		let decoder = JSONDecoder()
-		return try decoder.decode(PointSet.Metadata.self, from: data)
+		return try decoder.decode(T.self, from: data)
 	}
 
-	public func list() throws -> [String: PointSet.Metadata] {
-		let urls = try FileManager.default.contentsOfDirectory(
-			at: rootURL,
+	public struct Contents {
+		let containers: [String]
+		let files: [String]
+	}
+
+	public func contentsOfPath(_ path: Path) throws -> Contents {
+		let contents = try FileManager.default.contentsOfDirectory(
+			at: urlForPath(path),
 			includingPropertiesForKeys:[URLResourceKey.isDirectoryKey])
-		var results = [String: PointSet.Metadata]()
-		for url in urls {
+		var containers: [String] = []
+		var files: [String] = []
+		for url in contents {
 			let name = url.lastPathComponent
+			let resourceValues = try url.resourceValues(forKeys: [URLResourceKey.isDirectoryKey])
+			let isDirectory = resourceValues.isDirectory!
+			if isDirectory {
+				containers.append(name)
+			} else {
+				files.append(name)
+			}
+		}
+		return Contents(containers: containers, files: files)	
+	}
+}
+
+// Extra helpers for handling point sets
+extension DataManager {
+	public func loadPointSet(name: String) throws -> PointSet {
+		do {
+			let metadata: PointSet.Metadata =
+				try loadPath(["pointset", name, "metadata.json"])
+			let elements: [Point] =
+				try loadPath(["pointset", name, "elements.json"])
+			return PointSet(elements: elements, metadata: metadata)
+		} catch {
+			logger.error("Couldn't load point set '\(name)': \(error)")
+			throw error
+		}
+	}
+
+	public func savePointSet(_ pointSet: PointSet, name: String) throws {
+		try save(pointSet.elements, toPath: ["pointset", name, "elements.json"])
+		try save(pointSet.metadata, toPath: ["pointset", name, "metadata.json"])
+	}
+
+	public func listPointSets() throws -> [String: PointSet.Metadata] {
+		let pointSetNames = try contentsOfPath(["pointset"]).containers
+		var results: [String: PointSet.Metadata] = [:]
+		for name in pointSetNames {
 			do {
-				let resourceValues = try url.resourceValues(forKeys: [URLResourceKey.isDirectoryKey])
-				let isDirectory = resourceValues.isDirectory!
-				if !isDirectory {
-					// Apex sets are stored in directories under the root
-					continue
-				}
-				let metadata = try loadMetadata(name: name)
+				let metadata: PointSet.Metadata =
+					try loadPath(["pointset", name, "metadata.json"])
 				results[name] = metadata
 			} catch {
-				logger.warning("Couldn't load index data for apex set \"\(name)\": \(error)")
+				logger.warning("Couldn't load index data for point set \"\(name)\": \(error)")
 			}
 		}
 		return results

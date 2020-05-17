@@ -3,6 +3,8 @@ import Logging
 import CoreGraphics
 import BilliardLib
 
+// a point sequence converging to the apex for the
+// 30-60-90 triangle
 var points: [Point] = []
 let targetY = sqrt(3.0) / 4.0
 let delta = 0.1
@@ -17,12 +19,12 @@ for i in 1...1000 {
 let logger = Logger(label: "me.faec.billiards.CustomPointSet")
 let path = FileManager.default.currentDirectoryPath
 let dataURL = URL(fileURLWithPath: path).appendingPathComponent("data")
-let pointSetManager = try! PointSetManager(
-	rootURL: dataURL.appendingPathComponent("pointset"),
+let dataManager = try! DataManager(
+	rootURL: dataURL,
 	logger: logger)
 
 let metadata = PointSet.Metadata(count: points.count)
 let pointSet = PointSet(
 	elements: points, metadata: metadata)
 
-try! pointSetManager.save(pointSet, name: "thirty-sixty-ninety")
+try! dataManager.savePointSet(pointSet, name: "thirty-sixty-ninety")

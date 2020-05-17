@@ -1,4 +1,4 @@
-public class TurnCycle {
+public class TurnCycle: Codable {
 	public enum CycleError: Error {
 		case oddLengthPath
 		case zeroLengthPath

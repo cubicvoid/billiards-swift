@@ -15,7 +15,7 @@ public enum Singularity: Hashable {
 		}
 	}
 
-	public enum Orientation: Negatable, Hashable {
+	public enum Orientation: Int, Codable, Negatable, Hashable {
 		case forward
 		case backward
 
