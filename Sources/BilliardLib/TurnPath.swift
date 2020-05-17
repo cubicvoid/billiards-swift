@@ -1,4 +1,4 @@
-public struct TurnPath: Equatable {
+public struct TurnPath: Hashable {
 	public let initialOrientation: Singularity.Orientation
 	public let turns: [Int]
 

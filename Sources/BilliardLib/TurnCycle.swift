@@ -115,6 +115,15 @@ public class TurnCycle {
 	}
 }
 
+extension TurnCycle: Hashable {
+	public func hash(into hasher: inout Hasher) {
+		for segment in segments {
+			hasher.combine(segment)
+		}
+		//hasher.combine(segments)
+	}
+}
+
 fileprivate func _Sun(_ str: String) -> String {
 	return str
 }

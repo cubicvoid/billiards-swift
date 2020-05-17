@@ -156,7 +156,7 @@ class PointSetCommands {
 		var searchOptions = TrajectorySearchOptions()
 		searchOptions.attemptCount = 25000
 		searchOptions.maxPathLength = 2500
-		searchOptions.skipExactCheck = true
+		searchOptions.skipExactCheck = false
 		searchOptions.stopAfterSuccess = false
 		var activeSearches: [Int: Bool] = [:]
 		for (i, point) in pointSet.elements.enumerated() {
@@ -201,8 +201,12 @@ class PointSetCommands {
 						print(Red("  no feasible path found"))
 					}
 					searchResults.append(result)
-					print("found \(feasibleCount) / \(searchResults.count) so far")
-					print(" ...still active: \(activeSearches.keys.sorted())...", terminator: "")
+					print("found \(feasibleCount) / \(searchResults.count) so far. ",
+						"still active:",
+						Cyan("\(activeSearches.keys.sorted())"),
+						"...",
+						terminator: "")
+					//print(" ...still active: \(activeSearches.keys.sorted())...", terminator: "")
 					fflush(stdout)
 				}
 				apexGroup.leave()
