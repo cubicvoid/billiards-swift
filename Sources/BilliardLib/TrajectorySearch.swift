@@ -50,6 +50,9 @@ public func TrajectorySearchForApexCoords(
 	}
 
 	for _ in 1...options.attemptCount {
+		if options.shouldCancel?() == true {
+			break
+		}
 		// choose random trajectory
 		let trajectory = RandomFlipTrajectory(apex: apexApprox.coords)
 		var stepCount = options.maxPathLength
@@ -89,10 +92,12 @@ public struct TrajectorySearchResult {
 
 public struct TrajectorySearchOptions {
 	public var stopAfterSuccess: Bool = true
+	public var skipKnownPoints: Bool = true
 	public var allowMultipleResults: Bool = false
 	public var skipExactCheck: Bool = false
 	public var attemptCount: Int = 100
 	public var maxPathLength: Int = 100
+	public var shouldCancel: (() -> Bool)? = nil
 
 	public init() { }
 }

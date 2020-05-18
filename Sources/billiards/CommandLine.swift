@@ -1,5 +1,6 @@
 import Foundation
 import Logging
+import Dispatch
 #if os(Linux)
     import Glibc
 #else
@@ -138,7 +139,7 @@ class PointSetCommands {
 
 		guard let name = params["name"]
 		else {
-			print("pointset print: expected name\n")
+			fputs("pointset print: expected name\n", stderr)
 			return
 		}
 		let pointSet = try! dataManager.loadPointSet(name: name)
@@ -147,38 +148,172 @@ class PointSetCommands {
 		}
 	}
 
+	class CycleStats {
+		let cycle: TurnCycle
+		var pointCount = 0
+		init(_ cycle: TurnCycle) {
+			self.cycle = cycle
+		}
+	}
+
+	struct AggregateStats {
+		var totalLength: Int = 0
+		var totalWeight: Int = 0
+		var totalSegments: Int = 0
+
+		var maxLength: Int = 0
+		var maxWeight: Int = 0
+		var maxSegments: Int = 0
+	}
+
+	func summarize(name: String, pointSet: PointSet, cycles: [Int: TurnCycle]) {
+		var aggregate = AggregateStats()
+		var statsTable: [TurnCycle: CycleStats] = [:]
+		for (pointID, cycle) in cycles {
+			aggregate.totalLength += cycle.length
+			aggregate.maxLength = max(aggregate.maxLength, cycle.length)
+
+			aggregate.totalWeight += cycle.weight
+			aggregate.maxWeight = max(aggregate.maxWeight, cycle.weight)
+
+			aggregate.totalSegments += cycle.segments.count
+			aggregate.maxSegments = max(aggregate.maxSegments, cycle.segments.count)
+			
+			var curStats: CycleStats
+			if let entry = statsTable[cycle] {
+				curStats = entry
+			} else {
+				curStats = CycleStats(cycle)
+				statsTable[cycle] = curStats
+			}
+			curStats.pointCount += 1
+		}
+		let averageLength = String(format: "%.2f",
+			Double(aggregate.totalLength) / Double(cycles.count))
+		let averageWeight = String(format: "%.2f",
+			Double(aggregate.totalWeight) / Double(cycles.count))
+		let averageSegments = String(format: "%.2f",
+			Double(aggregate.totalSegments) / Double(cycles.count))
+		print("pointset: \(name)")
+		print("  known cycles: \(cycles.keys.count) / \(pointSet.elements.count)")
+		print("  distinct cycles: \(statsTable.count)")
+		print("  length: average \(averageLength), maximum \(aggregate.maxLength)")
+		print("  weight: average \(averageWeight), maximum \(aggregate.maxWeight)")
+		print("  segments: average \(averageSegments), maximum \(aggregate.maxSegments)")
+
+	}
+
+	func cmd_info(_ args: [String]) {
+		let params = ScanParams(args)
+		guard let name = params["name"]
+		else {
+			fputs("pointset info: expected name\n", stderr)
+			return
+		}
+
+		let pointSet = try! dataManager.loadPointSet(name: name)
+		var approxCycles: [Int: TurnCycle] =
+			(try? dataManager.loadPath(["pointset", name, "cyclesApprox"])) ?? [:]
+		var verifyCycles: [Int: TurnCycle] =
+			(try? dataManager.loadPath(["pointset", name, "cycles"])) ?? [:]
+
+		summarize(name: name, pointSet: pointSet, cycles: approxCycles)
+	}
+
 	func cmd_search(_ args: [String]) {
 		print("search")
 
+		signal(SIGINT, SIG_IGN)
+		let signalQueue = DispatchQueue(label: "me.faec.billiards.signalQueue")
+		var sigintCount = 0
+		//sigintSrc.suspend()
+		let sigintSrc = DispatchSource.makeSignalSource(
+			signal: SIGINT,
+			queue: signalQueue)
+		sigintSrc.setEventHandler {
+			print("Hi i got a sigint")
+			sigintCount += 1
+			if sigintCount > 1 {
+				exit(0)
+			}
+		}
+		sigintSrc.resume()
+		func shouldCancel() -> Bool {
+			return sigintCount > 0
+		}
+
 		var searchOptions = TrajectorySearchOptions()
-		searchOptions.attemptCount = 25000
-		searchOptions.maxPathLength = 200//2500
+		searchOptions.shouldCancel = shouldCancel
+		/*searchOptions.attemptCount = 5000
+		searchOptions.maxPathLength = 100
 		searchOptions.skipExactCheck = true
-		searchOptions.stopAfterSuccess = true
+		searchOptions.stopAfterSuccess = false
+		searchOptions.skipKnownPoints = false*/
 
 		let params = ScanParams(args)
 		guard let name = params["name"]
 		else {
-			print("pointset search: expected name\n")
+			fputs("pointset search: expected name\n", stderr)
 			return
 		}
+		if let attemptCountStr = params["attemptCount"] {
+			if let attemptCount = Int(attemptCountStr) {
+				searchOptions.attemptCount = attemptCount
+			} else {
+				fputs("pointset search: invalid attemptCount\n", stderr)
+				return
+			}
+		}
+		if let maxPathLengthStr = params["maxPathLength"] {
+			if let maxPathLength = Int(maxPathLengthStr) {
+				searchOptions.maxPathLength = maxPathLength
+			} else {
+				fputs("pointset search: invalid maxPathLength\n", stderr)
+				return
+			}
+		}
+		if let stopAfterSuccessStr = params["stopAfterSuccess"] {
+			if let stopAfterSuccess = Bool(stopAfterSuccessStr) {
+				searchOptions.stopAfterSuccess = stopAfterSuccess
+			} else {
+				fputs("pointset search: invalid stopAfterSuccess\n", stderr)
+				return
+			}
+		}
+		if let skipKnownPointsStr = params["skipKnownPoints"] {
+			if let skipKnownPoints = Bool(skipKnownPointsStr) {
+				searchOptions.skipKnownPoints = skipKnownPoints
+			} else {
+				fputs("pointset search: invalid skipKnownPoints\n", stderr)
+				return
+			}
+		}
+		if let skipExactCheckStr = params["skipExactCheck"] {
+			if let skipExactCheck = Bool(skipExactCheckStr) {
+				searchOptions.skipExactCheck = skipExactCheck
+			} else {
+				fputs("pointset search: invalid skipExactCheck\n", stderr)
+				return
+			}
+		}
 		let pointSet = try! dataManager.loadPointSet(name: name)
-		let cyclesPath = ["pointset", name,
-			searchOptions.skipExactCheck ? "cyclesApprox" : "cycles"]
+		let cyclesSuffix = searchOptions.skipExactCheck ? "cyclesApprox" : "cycles"
+		let cyclesPath = ["pointset", name, cyclesSuffix]
 		var shortestCycles: [Int: TurnCycle] =
 			(try? dataManager.loadPath(cyclesPath)) ?? [:]
 		
-		let apexQueue = DispatchQueue(
-			label: "me.faec.billiards.apexQueue",
+		let searchQueue = DispatchQueue(
+			label: "me.faec.billiards.searchQueue",
 			attributes: .concurrent)
 		let resultsQueue = DispatchQueue(label: "me.faec.billiards.resultsQueue")
-		let apexGroup = DispatchGroup()
+		let searchGroup = DispatchGroup()
 
 		var activeSearches: [Int: Bool] = [:]
 		var searchResults: [Int: TrajectorySearchResult] = [:]
 		var foundCount = 0
 		var updatedCount = 0
 		for (index, point) in pointSet.elements.enumerated() {
+			if shouldCancel() { break }
 			let pointApprox = point.asDoubleVec()
 			let approxAngles = Singularities(
 				s0: Double.pi / (2.0 * atan2(pointApprox.y, pointApprox.x)),
@@ -193,9 +328,9 @@ class PointSetCommands {
 			let angleStr = String(
 				format: "(S0: \(approxAngles[.S0]), S1: \(approxAngles[.S1]))")
 
-			apexGroup.enter()
-			apexQueue.async {
-				defer { apexGroup.leave() }
+			searchGroup.enter()
+			searchQueue.async {
+				defer { searchGroup.leave() }
 				var knownCycle: TurnCycle? = nil
 				var options = searchOptions
 				var skip = false
@@ -204,10 +339,10 @@ class PointSetCommands {
 					// starting search
 					knownCycle = shortestCycles[index]
 					if let lengthBound = knownCycle?.length {
-						if options.stopAfterSuccess {
+						if options.skipKnownPoints {
 							// We already have a cycle for this point
 							//print(ClearCurrentLine(), terminator: "\r")
-							//print("skipping:", Cyan("\(index)"))
+							//print("skipping:", Cyan("\(index)"), terminator: "")
 							skip = true
 							return
 						}
@@ -216,7 +351,7 @@ class PointSetCommands {
 					}
 					activeSearches[index] = true
 				}
-				if skip { return }
+				if skip || shouldCancel() { return }
 
 				let result = TrajectorySearchForApexCoords(
 					point, options: options)
@@ -235,7 +370,8 @@ class PointSetCommands {
 					print("    S1: \(approxAngles[.S1])")
 					if let oldCycle = knownCycle {
 						if let newCycle = result.shortestCycle {
-							print(Magenta("  replaced cycle"), newCycle)
+							print(DarkGray("  old cycle"), oldCycle)
+							print(Magenta("  replaced with"), newCycle)
 							shortestCycles[index] = newCycle
 							updatedCount += 1
 						} else {
@@ -248,8 +384,10 @@ class PointSetCommands {
 					} else {
 						print(Red("  no feasible path found"))
 					}
-					print("found \(foundCount), updated \(updatedCount)",
-						"out of \(searchResults.count) so far.",
+					let failedCount = searchResults.count -
+						(foundCount + updatedCount)
+					print("found \(foundCount), updated \(updatedCount),",
+						"failed \(failedCount).",
 						"still active:",
 						Cyan("\(activeSearches.keys.sorted())"),
 						"...",
@@ -258,9 +396,12 @@ class PointSetCommands {
 				}
 			}
 		}
-		apexGroup.wait()
+		searchGroup.wait()
 		print(ClearCurrentLine(), terminator: "\r")
-		print("found \(foundCount), updated \(updatedCount) out of \(searchResults.count) attempts")
+		let failedCount = searchResults.count -
+			(foundCount + updatedCount)
+		print("found \(foundCount), updated \(updatedCount),",
+			"failed \(failedCount).")
 		try! dataManager.save(shortestCycles, toPath: cyclesPath)
 	}
 
@@ -374,6 +515,8 @@ class PointSetCommands {
 			cmd_plot(Array(args[1...]))
 		case "search":
 			cmd_search(Array(args[1...]))
+		case "info":
+			cmd_info(Array(args[1...]))
 		default:
 			print("Unrecognized command '\(command)'")
 		}
