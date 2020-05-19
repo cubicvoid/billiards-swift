@@ -1,5 +1,5 @@
 import Foundation
-import CoreGraphics
+//import CoreGraphics
 import BilliardLib
 /*
 let applyTransform = false
@@ -95,7 +95,7 @@ func makeTree() -> Tree<Data> {
 func renderTree(_ root: Tree<Data>) {
   let frontConstraint = Vec3(x: k.zero, y: k.one, z: k.zero)
 
-  HalfSpheresRender(outputHeight: 4000, filename: "phase.png")
+  /*HalfSpheresRender(outputHeight: 4000, filename: "phase.png")
   { (context: CGContext, sign: Sign) in
     for leaf in root.leafs() {
       guard let regionIndex = leaf.data.regionIndex
@@ -138,7 +138,7 @@ func renderTree(_ root: Tree<Data>) {
       context.setFillColor(color)
       context.drawPath(using: .fillStroke)
     }
-  }
+  }*/
 }
 
 func childRatio(_ t: Tree<Data>) {

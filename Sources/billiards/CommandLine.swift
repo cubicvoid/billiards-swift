@@ -433,7 +433,7 @@ class PointSetCommands {
 		//let turns = [3, -1, 1, -1, -3, 1, -2, 1, -3, -1, 1, -1, 3, 2]
 		//let feasibility = SimpleCycleFeasibility(turns: turns)
 
-		ContextRenderToURL(outputURL, width: width, height: height)
+		/*ContextRenderToURL(outputURL, width: width, height: height)
 		{ (context: CGContext) in
 			var i = 0
 			for point in pointSet.elements {
@@ -441,15 +441,7 @@ class PointSetCommands {
 				i += 1
 				let modelCoords = point//point.asDoubleVec()
 
-				/*if !result.feasible {
-				continue
-				}*/
 				let color = CGColor(red: 0.2, green: 0.2, blue: 0.8, alpha: 0.6)
-				/*guard let color: CGColor = colorForResult(result)
-				else {
-				//if !filter.includePoint(modelCoords) {//!filterPoint(modelCoords) {
-				continue
-				}*/
 				let imageCoords = toImageCoords(modelCoords.asDoubleVec())
 				
 				context.beginPath()
@@ -479,7 +471,7 @@ class PointSetCommands {
 			context.setStrokeColor(red: 0.1, green: 0.0, blue: 0.2, alpha: 1.0)
 			context.setLineWidth(2.0)
 			context.drawPath(using: .stroke)
-		}
+		}*/
 	}
 
 	func cmd_delete(_ args: [String]) {

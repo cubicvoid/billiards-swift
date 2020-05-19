@@ -1,6 +1,5 @@
 import Foundation
 import Logging
-import CoreGraphics
 import BilliardLib
 
 // a point sequence converging to the apex for the

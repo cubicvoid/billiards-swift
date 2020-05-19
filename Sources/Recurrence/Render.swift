@@ -1,8 +1,8 @@
 import Foundation
-import CoreGraphics
+//import CoreGraphics
 import BilliardLib
 
-@discardableResult func HalfSpheresRender(
+/*@discardableResult func HalfSpheresRender(
     outputHeight: Int, filename: String,
     _ draw: (CGContext, Sign) -> Void) -> Bool {
   let outputWidth = outputHeight * 2
@@ -94,4 +94,4 @@ import BilliardLib
     return false
   }
   return true
-}
+}*/

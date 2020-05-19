@@ -9,7 +9,7 @@ public struct SimpleCycleFeasibilityResult<k: Field & Comparable & Numeric> {
 		return margin > k.zero
 	}
 
-	public func color() -> CGColor {
+	/*public func color() -> CGColor {
 		let expectedMargin = apex.coords.y / k(turnPath.turns.count)
 
 		var hue: Vec3<Double>
@@ -30,7 +30,7 @@ public struct SimpleCycleFeasibilityResult<k: Field & Comparable & Numeric> {
 			green: CGFloat(color.y),
 			blue: CGFloat(color.z),
 			alpha: 0.6)
-	}
+	}*/
 }
 
 // SimpleCycleFeasibility computes "cycle feasibility" of a path: whether a
