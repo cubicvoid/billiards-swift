@@ -15,23 +15,20 @@ let package = Package(
 		.package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
 	],
 	targets: [
+		.systemLibrary(name: "Clibpng", path: "Modules"),
 		.systemLibrary(name: "CGmp", path: "Modules"),
 		.systemLibrary(name: "Clibbsd", path: "Modules"),
 		.target(
-				name: "billiards",
-				dependencies: ["BilliardLib", "Logging"]
+			name: "billiards",
+			dependencies: ["BilliardLib", "Logging", "Clibpng"]
 		),
 		.target(
-				name: "CustomPointSet",
-				dependencies: ["BilliardLib"]
+			name: "CustomPointSet",
+			dependencies: ["BilliardLib"]
 		),
 		.target(
-				name: "Recurrence",
-				dependencies: ["BilliardLib"]
-		),
-		.target(
-				name: "BilliardLib",
-				dependencies: ["CGmp", "Clibbsd", "Logging"]
+			name: "BilliardLib",
+			dependencies: ["CGmp", "Clibbsd", "Logging"]
 		),
 		.testTarget(
 			name: "BilliardLibTests",
