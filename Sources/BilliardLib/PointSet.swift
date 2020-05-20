@@ -33,8 +33,9 @@ public class DataManager {
 	public typealias Path = [String]
 
 	public init(rootURL: URL, logger: Logger) throws {
+    let pointsetURL = rootURL.appendingPathComponent("pointset")
 		try FileManager.default.createDirectory(
-			at: rootURL, 
+			at: pointsetURL, 
 			withIntermediateDirectories: true)
 		self.rootURL = rootURL
 		self.logger = logger
