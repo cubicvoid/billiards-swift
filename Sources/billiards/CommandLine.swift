@@ -147,60 +147,7 @@ class PointSetCommands {
 		}
 	}
 
-	class CycleStats {
-		let cycle: TurnCycle
-		var pointCount = 0
-		init(_ cycle: TurnCycle) {
-			self.cycle = cycle
-		}
-	}
 
-	struct AggregateStats {
-		var totalLength: Int = 0
-		var totalWeight: Int = 0
-		var totalSegments: Int = 0
-
-		var maxLength: Int = 0
-		var maxWeight: Int = 0
-		var maxSegments: Int = 0
-	}
-
-	func summarize(name: String, pointSet: PointSet, cycles: [Int: TurnCycle]) {
-		var aggregate = AggregateStats()
-		var statsTable: [TurnCycle: CycleStats] = [:]
-		for (_, cycle) in cycles {
-			aggregate.totalLength += cycle.length
-			aggregate.maxLength = max(aggregate.maxLength, cycle.length)
-
-			aggregate.totalWeight += cycle.weight
-			aggregate.maxWeight = max(aggregate.maxWeight, cycle.weight)
-
-			aggregate.totalSegments += cycle.segments.count
-			aggregate.maxSegments = max(aggregate.maxSegments, cycle.segments.count)
-			
-			var curStats: CycleStats
-			if let entry = statsTable[cycle] {
-				curStats = entry
-			} else {
-				curStats = CycleStats(cycle)
-				statsTable[cycle] = curStats
-			}
-			curStats.pointCount += 1
-		}
-		let averageLength = String(format: "%.2f",
-			Double(aggregate.totalLength) / Double(cycles.count))
-		let averageWeight = String(format: "%.2f",
-			Double(aggregate.totalWeight) / Double(cycles.count))
-		let averageSegments = String(format: "%.2f",
-			Double(aggregate.totalSegments) / Double(cycles.count))
-		print("pointset: \(name)")
-		print("  known cycles: \(cycles.keys.count) / \(pointSet.elements.count)")
-		print("  distinct cycles: \(statsTable.count)")
-		print("  length: average \(averageLength), maximum \(aggregate.maxLength)")
-		print("  weight: average \(averageWeight), maximum \(aggregate.maxWeight)")
-		print("  segments: average \(averageSegments), maximum \(aggregate.maxSegments)")
-
-	}
 
 	func cmd_info(_ args: [String]) {
 		let params = ScanParams(args)
@@ -209,14 +156,21 @@ class PointSetCommands {
 			fputs("pointset info: expected name\n", stderr)
 			return
 		}
+		let indexParam: Int? = params["index"]
 
 		let pointSet = try! dataManager.loadPointSet(name: name)
-		let approxCycles: [Int: TurnCycle] =
-			(try? dataManager.loadPath(["pointset", name, "cyclesApprox"])) ?? [:]
-		//let verifyCycles: [Int: TurnCycle] =
-		//	(try? dataManager.loadPath(["pointset", name, "cycles"])) ?? [:]
+		let knownCycles: [Int: TurnCycle] =
+			(try? dataManager.loadPath(["pointset", name, "cycles"])) ?? [:]
 
-		summarize(name: name, pointSet: pointSet, cycles: approxCycles)
+		if let index = indexParam {
+			pointSet.printPointIndex(
+				index,
+				knownCycles: knownCycles,
+				precision: 8)
+		} else {
+			pointSet.summarize(name: name,
+				knownCycles: knownCycles)
+		}
 	}
 
 	func cmd_search(_ args: [String]) {
@@ -242,11 +196,6 @@ class PointSetCommands {
 		}
 
 		var searchOptions = TrajectorySearchOptions()
-		//searchOptions.shouldCancel = shouldCancel
-		/*searchOptions.attemptCount = 5000
-		searchOptions.maxPathLength = 100
-		searchOptions.stopAfterSuccess = false
-		searchOptions.skipKnownPoints = false*/
 
 		let params = ScanParams(args)
 		guard let name: String = params["name"]
@@ -268,10 +217,6 @@ class PointSetCommands {
 		}
 		let pointSet = try! dataManager.loadPointSet(name: name)
 		var knownCycles = dataManager.knownCyclesForPointSet(name: name)
-		/*let cyclesSuffix = searchOptions.skipeck ? "cyclesApprox" : "cycles"
-		let cyclesPath = ["pointset", name, cyclesSuffix]
-		var shortestCycles: [Int: TurnCycle] =
-			(try? dataManager.loadPath(cyclesPath)) ?? [:]*/
 		
 		let searchQueue = DispatchQueue(
 			label: "me.faec.billiards.searchQueue",
@@ -337,22 +282,12 @@ class PointSetCommands {
 					// reset the current line
 					print(ClearCurrentLine(), terminator: "\r")
 
-					let pointApprox = point.asDoubleVec()
-					let approxAngles = Singularities(
-						s0: Double.pi / (2.0 * atan2(pointApprox.y, pointApprox.x)),
-						s1: Double.pi / (2.0 * atan2(pointApprox.y, 1.0 - pointApprox.x))
-					).map { String(format: "%.2f", $0)}
-					let coordsStr = String(
-						format: "(%.4f, %.4f)", pointApprox.x, pointApprox.y)
-					print(Cyan("[\(index)]"), caption)
-					print(Green("  cartesian coords"), coordsStr)
-					print(Green("  angle bounds"))
-					print(DarkGray("    S0: \(approxAngles[.S0])"))
-					print("    S1: \(approxAngles[.S1])")
-
-					if let cycle = knownCycles[index] {
-						print(Green("  cycle"), cycle)
-					}
+					pointSet.printPointIndex(
+						index,
+						knownCycles: knownCycles,
+						precision: 4,
+						caption: caption)
+					
 					let failedCount = searchResults.count -
 						(foundCount + updatedCount)
 					print("found \(foundCount), updated \(updatedCount),",
@@ -468,6 +403,7 @@ class PointSetCommands {
 		}
 	}
 
+
 	func cmd_probe(_ args: [String]) {
 		let params = ScanParams(args)
 		guard let name: String = params["name"]
@@ -507,27 +443,13 @@ class PointSetCommands {
 			distance[$0] < distance[$1]
 		}
 
-		let precision = 8
 		for index in sortedIndices.prefix(count) {
-			let point = pointSet.elements[index]
-			let pointApprox = point.asDoubleVec()
-			let approxAngles = Singularities(
-				s0: Double.pi / (2.0 * atan2(pointApprox.y, pointApprox.x)),
-				s1: Double.pi / (2.0 * atan2(pointApprox.y, 1.0 - pointApprox.x))
-			).map { String(format: "%.2f", $0)}
 			let distanceStr = String(format: "%.6f", distance[index])
-			let coordsStr = String(
-				format: "(%.\(precision)f, %.\(precision)f)", pointApprox.x, pointApprox.y)
-			print(Cyan("[\(index)]"), "(distance \(distanceStr))")
-			print(Green("  cartesian coords"), coordsStr)
-			print(Green("  angle bounds"))
-			print(DarkGray("    S0: \(approxAngles[.S0])"))
-			print("    S1: \(approxAngles[.S1])")
-			if let cycle = knownCycles[index] {
-				print(Green("  cycle"), cycle)
-			}
+			pointSet.printPointIndex(index,
+				knownCycles: knownCycles,
+				precision: 6,
+				caption: "(distance \(distanceStr))")
 		}
-
 	}
 
 	func cmd_delete(_ args: [String]) {
@@ -570,5 +492,85 @@ class PointSetCommands {
 		default:
 			print("Unrecognized command '\(command)'")
 		}
+	}
+}
+
+class CycleStats {
+	let cycle: TurnCycle
+	var pointCount = 0
+	init(_ cycle: TurnCycle) {
+		self.cycle = cycle
+	}
+}
+
+struct AggregateStats {
+	var totalLength: Int = 0
+	var totalWeight: Int = 0
+	var totalSegments: Int = 0
+
+	var maxLength: Int = 0
+	var maxWeight: Int = 0
+	var maxSegments: Int = 0
+}
+
+extension PointSet {
+	func printPointIndex(
+		_ index: Int,
+		knownCycles: [Int: TurnCycle],
+		precision: Int = 6,
+		caption: String = ""
+	) {
+		let point = self.elements[index]
+		let pointApprox = point.asDoubleVec()
+		let approxAngles = Singularities(
+			s0: Double.pi / (2.0 * atan2(pointApprox.y, pointApprox.x)),
+			s1: Double.pi / (2.0 * atan2(pointApprox.y, 1.0 - pointApprox.x))
+		).map { String(format: "%.\(precision)f", $0)}
+		let coordsStr = String(
+			format: "(%.\(precision)f, %.\(precision)f)", pointApprox.x, pointApprox.y)
+		print(Cyan("[\(index)]"), caption)
+		print(Green("  cartesian coords"), coordsStr)
+		print(Green("  bipolar coords"))
+		print(DarkGray("    S0: \(approxAngles[.S0])"))
+		print("    S1: \(approxAngles[.S1])")
+		if let cycle = knownCycles[index] {
+			print(Green("  cycle"), cycle)
+		}
+	}
+
+	func summarize(name: String, knownCycles: [Int: TurnCycle]) {
+		var aggregate = AggregateStats()
+		var statsTable: [TurnCycle: CycleStats] = [:]
+		for (_, cycle) in knownCycles {
+			aggregate.totalLength += cycle.length
+			aggregate.maxLength = max(aggregate.maxLength, cycle.length)
+
+			aggregate.totalWeight += cycle.weight
+			aggregate.maxWeight = max(aggregate.maxWeight, cycle.weight)
+
+			aggregate.totalSegments += cycle.segments.count
+			aggregate.maxSegments = max(aggregate.maxSegments, cycle.segments.count)
+			
+			var curStats: CycleStats
+			if let entry = statsTable[cycle] {
+				curStats = entry
+			} else {
+				curStats = CycleStats(cycle)
+				statsTable[cycle] = curStats
+			}
+			curStats.pointCount += 1
+		}
+		let averageLength = String(format: "%.2f",
+			Double(aggregate.totalLength) / Double(knownCycles.count))
+		let averageWeight = String(format: "%.2f",
+			Double(aggregate.totalWeight) / Double(knownCycles.count))
+		let averageSegments = String(format: "%.2f",
+			Double(aggregate.totalSegments) / Double(knownCycles.count))
+		print("pointset: \(name)")
+		print("  known cycles: \(knownCycles.keys.count) / \(self.elements.count)")
+		print("  distinct cycles: \(statsTable.count)")
+		print("  length: average \(averageLength), maximum \(aggregate.maxLength)")
+		print("  weight: average \(averageWeight), maximum \(aggregate.maxWeight)")
+		print("  segments: average \(averageSegments), maximum \(aggregate.maxSegments)")
 	}
 }

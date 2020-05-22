@@ -67,6 +67,7 @@ public func TrajectorySearchForApexCoords(
 			withApex: apexApprox,
 			forSteps: stepCount
 		) {
+			// make sure it works with exact computation too
 			if let result = SimpleCycleFeasibilityForTurnPath(path, apex: apex) {
 				if result.feasible {
 					addCycleForPath(path)

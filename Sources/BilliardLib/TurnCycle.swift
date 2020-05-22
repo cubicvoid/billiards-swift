@@ -160,13 +160,13 @@ fileprivate func _ColorString(
 }
 
 fileprivate func _SubstringForTurnPath(
-	_ turnPath: TurnPath
+	_ turnPath: TurnPath, signStr: String
 ) -> String {
 	var turnStrings: [String] = []
 	var orientation = turnPath.initialOrientation
 	for turn in turnPath.turns {
 		let turnString = _ColorString(
-			turn.description,
+			signStr + turn.description,
 			forSingularity: orientation.to)
 		turnStrings.append(turnString)
 		orientation = -orientation
@@ -188,9 +188,10 @@ fileprivate func _SeparatorForOrientation(
 extension TurnCycle: CustomStringConvertible {
 	public var description: String {
 		var strs: [String] = []
-		for segment in segments {
+		for (i, segment) in segments.enumerated() {
+			let signStr = (i % 2 == 1) ? "-" : ""
 			strs.append(_SeparatorForOrientation(segment.initialOrientation))
-			strs.append(_SubstringForTurnPath(segment))
+			strs.append(_SubstringForTurnPath(segment, signStr: signStr))
 		}
 		strs.append(_SeparatorForOrientation(
 			segments.first!.initialOrientation))
