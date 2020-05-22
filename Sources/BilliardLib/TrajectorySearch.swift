@@ -67,9 +67,7 @@ public func TrajectorySearchForApexCoords(
 			withApex: apexApprox,
 			forSteps: stepCount
 		) {
-			if options.skipExactCheck {
-				addCycleForPath(path)
-			} else if let result = SimpleCycleFeasibilityForTurnPath(path, apex: apex) {
+			if let result = SimpleCycleFeasibilityForTurnPath(path, apex: apex) {
 				if result.feasible {
 					addCycleForPath(path)
 				}
@@ -95,7 +93,6 @@ public struct TrajectorySearchOptions {
 	public var stopAfterSuccess: Bool = true
 	public var skipKnownPoints: Bool = true
 	public var allowMultipleResults: Bool = false
-	public var skipExactCheck: Bool = false
 	public var attemptCount: Int = 100
 	public var maxPathLength: Int = 100
 

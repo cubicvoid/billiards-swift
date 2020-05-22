@@ -245,7 +245,6 @@ class PointSetCommands {
 		//searchOptions.shouldCancel = shouldCancel
 		/*searchOptions.attemptCount = 5000
 		searchOptions.maxPathLength = 100
-		searchOptions.skipExactCheck = true
 		searchOptions.stopAfterSuccess = false
 		searchOptions.skipKnownPoints = false*/
 
@@ -267,12 +266,9 @@ class PointSetCommands {
 		if let skipKnownPoints: Bool = params["skipKnownPoints"] {
 			searchOptions.skipKnownPoints = skipKnownPoints
 		}
-		if let skipExactCheck: Bool = params["skipExactCheck"] {
-			searchOptions.skipExactCheck = skipExactCheck
-		}
 		let pointSet = try! dataManager.loadPointSet(name: name)
-		let knownCycles = dataManager.knownCyclesForPointSet(name: name)
-		/*let cyclesSuffix = searchOptions.skipExactCheck ? "cyclesApprox" : "cycles"
+		var knownCycles = dataManager.knownCyclesForPointSet(name: name)
+		/*let cyclesSuffix = searchOptions.skipeck ? "cyclesApprox" : "cycles"
 		let cyclesPath = ["pointset", name, cyclesSuffix]
 		var shortestCycles: [Int: TurnCycle] =
 			(try? dataManager.loadPath(cyclesPath)) ?? [:]*/
@@ -293,22 +289,18 @@ class PointSetCommands {
 			searchGroup.enter()
 			searchQueue.async {
 				defer { searchGroup.leave() }
-				var knownCycle: TurnCycle? = nil
 				var options = searchOptions
 				var skip = false
 
 				resultsQueue.sync(flags: .barrier) {
 					// starting search
-					if let cycle = knownCycles.cycleForIndex(
-						index, estimated: options.skipExactCheck
-					) {
+					if let cycle = knownCycles[index] {
 						if options.skipKnownPoints {
 							skip = true
 							return
 						}
 						options.maxPathLength = min(
 							options.maxPathLength, cycle.length - 1)
-						knownCycle = cycle
 					}
 					activeSearches[index] = true
 				}
@@ -322,24 +314,24 @@ class PointSetCommands {
 					searchResults[index] = searchResult
 					var caption = ""
 					if let newCycle = searchResult.shortestCycle {
-						let addResult = knownCycles.addCycle(
-							newCycle, index: index,
-							estimated: options.skipExactCheck)
-						knownCycle = addResult.finalValue
-						if !addResult.valueChanged {
-							caption = DarkGray("no change")
-						} else if addResult.initialValue == nil {
+						if let oldCycle = knownCycles[index] {
+							if newCycle.length < oldCycle.length {
+								knownCycles[index] = newCycle
+								caption = Magenta("found shorter cycle ") +
+									"[\(oldCycle.length) -> \(newCycle.length)]"
+								updatedCount += 1
+							} else {
+								caption = DarkGray("no change")
+							}
+						} else {
+							knownCycles[index] = newCycle
 							caption = "cycle found"
 							foundCount += 1
-						} else {
-							caption = Magenta("found shorter cycle ") +
-								"[\(knownCycle!.length) -> \(newCycle.length)]"
-							updatedCount += 1
 						}
-					} else if knownCycle == nil {
-						caption = Red("no cycle found")
-					} else {
+					} else if knownCycles[index] != nil {
 						caption = DarkGray("no change")
+					} else {
+						caption = Red("no cycle found")
 					}
 					
 					// reset the current line
@@ -357,23 +349,8 @@ class PointSetCommands {
 					print(Green("  angle bounds"))
 					print(DarkGray("    S0: \(approxAngles[.S0])"))
 					print("    S1: \(approxAngles[.S1])")
-					/*if let oldCycle = knownCycle {
-						if let newCycle = result.shortestCycle {
-							print(DarkGray("  old cycle"), oldCycle)
-							print(Magenta("  replaced with"), newCycle)
-							shortestCycles[index] = newCycle
-							updatedCount += 1
-						} else {
-							print(DarkGray("  existing cycle"), oldCycle)
-						}
-					} else if let cycle = result.shortestCycle {
-						print(Green("  found cycle"), cycle)
-						shortestCycles[index] = cycle
-						foundCount += 1
-					} else {
-						print(Red("  no feasible path found"))
-					}*/
-					if let cycle = knownCycle {
+
+					if let cycle = knownCycles[index] {
 						print(Green("  cycle"), cycle)
 					}
 					let failedCount = searchResults.count -
@@ -546,55 +523,11 @@ class PointSetCommands {
 			print(Green("  angle bounds"))
 			print(DarkGray("    S0: \(approxAngles[.S0])"))
 			print("    S1: \(approxAngles[.S1])")
-			let cycles = knownCycles[index]
-			if let cycle = cycles.estimated {
-				print(Green("  estimated cycle"), cycle)
-			}
-			if let cycle = cycles.verified {
-				print(Green("  verified cycle"), cycle)
+			if let cycle = knownCycles[index] {
+				print(Green("  cycle"), cycle)
 			}
 		}
 
-	}
-
-	func cmd_verify(_ args: [String]) {
-		let params = ScanParams(args)
-		guard let name: String = params["name"]
-		else {
-			fputs("pointset verify: expected name\n", stderr)
-			return
-		}
-		let pointSet = try! dataManager.loadPointSet(name: name)
-		let knownCycles = dataManager.knownCyclesForPointSet(name: name)
-		var confirmedCount = 0
-		var totalCount = 0
-		for index in pointSet.elements.indices {
-			let known = knownCycles[index]
-			guard let cycle = known.estimated
-			else { continue }
-			if let verified = known.verified {
-				if verified.length <= cycle.length {
-					// we already have an "equally good"
-					// cycle, don't change it
-					continue
-				}
-			}
-			let apex = ApexData(coords: pointSet.elements[index])
-			let result = SimpleCycleFeasibilityForTurnPath(
-				cycle.turnPath(), apex: apex)
-			print(Cyan("[\(index)]"))
-			if result?.feasible == true {
-				confirmedCount += 1
-				knownCycles.addCycle(cycle, index: index, estimated: false)
-				print("  verified cycle", cycle)
-			} else {
-				print("  verification failed on cycle", cycle)
-			}
-			totalCount += 1
-		}
-		print("verified \(confirmedCount) / \(totalCount)")
-		try! dataManager.saveKnownCycles(
-			knownCycles, pointSetName: name)
 	}
 
 	func cmd_delete(_ args: [String]) {
@@ -632,8 +565,6 @@ class PointSetCommands {
 			cmd_probe(Array(args[1...]))
 		case "search":
 			cmd_search(Array(args[1...]))
-		case "verify":
-			cmd_verify(Array(args[1...]))
 		case "info":
 			cmd_info(Array(args[1...]))
 		default:
