@@ -113,6 +113,24 @@ public class TurnCycle: Codable {
 
 		self.init(segments: CanonicallyOrderSegments(segments))
 	}
+
+	public func turnPath() -> TurnPath {
+		let coeff = Singularities(s0: 1, s1: -1)
+		var turns: [Int] = []
+		let initialOrientation = segments.first!.initialOrientation
+		var singularity = initialOrientation.to
+		var sign = 1
+		for segment in segments {
+			for degree in segment.turns {
+				turns.append(coeff[singularity] * sign * degree)
+				singularity = singularity.next()
+			}
+			sign = -sign
+		}
+		return TurnPath(
+			initialOrientation: initialOrientation,
+			turns: turns)
+	}
 }
 
 extension TurnCycle: Hashable {

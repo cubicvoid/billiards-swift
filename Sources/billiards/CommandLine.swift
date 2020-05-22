@@ -44,29 +44,21 @@ class BilliardsRepl {
 	}
 }
 
-// ScanParams expects an array of string arguments of the form
-// "key:value" and returns a dictionary with the corresponding
-// keys and values.
-func ScanParams(_ args: [String]) -> [String: String] {
-	var results: [String: String] = [:]
-	for arg in args {
-		if let separatorIndex = arg.firstIndex(of: ":") {
-			let key = String(arg[..<separatorIndex])
-			let valueStart = arg.index(after: separatorIndex)
-			let value = String(arg[valueStart...])
-			if key != "" {
-			results[key] = value
-			}
+extension Vec2: LosslessStringConvertible
+	where R: LosslessStringConvertible
+{
+	public init?(_ description: String) {
+		let components = description.split(separator: ",")
+		if components.count != 2 {
+			return nil
 		}
+		guard let x = R.self(String(components[0]))
+		else { return nil }
+		guard let y = R.self(String(components[1]))
+		else { return nil }
+		self.init(x, y)
 	}
-	return results
-}
 
-func defaultPointSetName() -> String {
-	let formatter = DateFormatter()
-	formatter.dateFormat = "yyyyMMdd-HHmmss"
-	let dateString = formatter.string(from: Date())
-	return "points-\(dateString)"
 }
 
 /*func colorForResult(_ result: PathFeasibility.Result) -> CGColor? {
@@ -98,14 +90,21 @@ class PointSetCommands {
 	func cmd_create(_ args: [String]) {
 		let params = ScanParams(args)
 
-		let name = params["name"] ?? defaultPointSetName()
-		let countString = params["count"] ?? "100"
-		let densityString = params["gridDensity"] ?? "32"
+		guard let name: String = params["name"]
+		else {
+			fputs("pointset create: expected name\n", stderr)
+			return
+		}
+		guard let count: Int = params["count"]
+		else {
+			fputs("pointset create: expected count\n", stderr)
+			return
+		}
+		let gridDensity: UInt = params["gridDensity"] ?? 32
 
-		let count = Int(countString)!
-		let density = UInt(densityString)!
-		let pointSet = RandomApexesWithGridDensity(density, count: count)
-		logger.info("Generated point set with density: \(density), count: \(count)")
+		let pointSet = RandomApexesWithGridDensity(
+			gridDensity, count: count)
+		logger.info("Generated point set with density: 2^\(gridDensity), count: \(count)")
 		try! dataManager.savePointSet(pointSet, name: name)
 	}
 
@@ -137,7 +136,7 @@ class PointSetCommands {
 	func cmd_print(_ args: [String]) {
 		let params = ScanParams(args)
 
-		guard let name = params["name"]
+		guard let name: String = params["name"]
 		else {
 			fputs("pointset print: expected name\n", stderr)
 			return
@@ -169,7 +168,7 @@ class PointSetCommands {
 	func summarize(name: String, pointSet: PointSet, cycles: [Int: TurnCycle]) {
 		var aggregate = AggregateStats()
 		var statsTable: [TurnCycle: CycleStats] = [:]
-		for (pointID, cycle) in cycles {
+		for (_, cycle) in cycles {
 			aggregate.totalLength += cycle.length
 			aggregate.maxLength = max(aggregate.maxLength, cycle.length)
 
@@ -205,17 +204,17 @@ class PointSetCommands {
 
 	func cmd_info(_ args: [String]) {
 		let params = ScanParams(args)
-		guard let name = params["name"]
+		guard let name: String = params["name"]
 		else {
 			fputs("pointset info: expected name\n", stderr)
 			return
 		}
 
 		let pointSet = try! dataManager.loadPointSet(name: name)
-		var approxCycles: [Int: TurnCycle] =
+		let approxCycles: [Int: TurnCycle] =
 			(try? dataManager.loadPath(["pointset", name, "cyclesApprox"])) ?? [:]
-		var verifyCycles: [Int: TurnCycle] =
-			(try? dataManager.loadPath(["pointset", name, "cycles"])) ?? [:]
+		//let verifyCycles: [Int: TurnCycle] =
+		//	(try? dataManager.loadPath(["pointset", name, "cycles"])) ?? [:]
 
 		summarize(name: name, pointSet: pointSet, cycles: approxCycles)
 	}
@@ -243,7 +242,7 @@ class PointSetCommands {
 		}
 
 		var searchOptions = TrajectorySearchOptions()
-		searchOptions.shouldCancel = shouldCancel
+		//searchOptions.shouldCancel = shouldCancel
 		/*searchOptions.attemptCount = 5000
 		searchOptions.maxPathLength = 100
 		searchOptions.skipExactCheck = true
@@ -251,56 +250,32 @@ class PointSetCommands {
 		searchOptions.skipKnownPoints = false*/
 
 		let params = ScanParams(args)
-		guard let name = params["name"]
+		guard let name: String = params["name"]
 		else {
 			fputs("pointset search: expected name\n", stderr)
 			return
 		}
-		if let attemptCountStr = params["attemptCount"] {
-			if let attemptCount = Int(attemptCountStr) {
-				searchOptions.attemptCount = attemptCount
-			} else {
-				fputs("pointset search: invalid attemptCount\n", stderr)
-				return
-			}
+		if let attemptCount: Int = params["attemptCount"] {
+			searchOptions.attemptCount = attemptCount
 		}
-		if let maxPathLengthStr = params["maxPathLength"] {
-			if let maxPathLength = Int(maxPathLengthStr) {
-				searchOptions.maxPathLength = maxPathLength
-			} else {
-				fputs("pointset search: invalid maxPathLength\n", stderr)
-				return
-			}
+		if let maxPathLength: Int = params["maxPathLength"] {
+			searchOptions.maxPathLength = maxPathLength
 		}
-		if let stopAfterSuccessStr = params["stopAfterSuccess"] {
-			if let stopAfterSuccess = Bool(stopAfterSuccessStr) {
-				searchOptions.stopAfterSuccess = stopAfterSuccess
-			} else {
-				fputs("pointset search: invalid stopAfterSuccess\n", stderr)
-				return
-			}
+		if let stopAfterSuccess: Bool = params["stopAfterSuccess"] {
+			searchOptions.stopAfterSuccess = stopAfterSuccess
 		}
-		if let skipKnownPointsStr = params["skipKnownPoints"] {
-			if let skipKnownPoints = Bool(skipKnownPointsStr) {
-				searchOptions.skipKnownPoints = skipKnownPoints
-			} else {
-				fputs("pointset search: invalid skipKnownPoints\n", stderr)
-				return
-			}
+		if let skipKnownPoints: Bool = params["skipKnownPoints"] {
+			searchOptions.skipKnownPoints = skipKnownPoints
 		}
-		if let skipExactCheckStr = params["skipExactCheck"] {
-			if let skipExactCheck = Bool(skipExactCheckStr) {
-				searchOptions.skipExactCheck = skipExactCheck
-			} else {
-				fputs("pointset search: invalid skipExactCheck\n", stderr)
-				return
-			}
+		if let skipExactCheck: Bool = params["skipExactCheck"] {
+			searchOptions.skipExactCheck = skipExactCheck
 		}
 		let pointSet = try! dataManager.loadPointSet(name: name)
-		let cyclesSuffix = searchOptions.skipExactCheck ? "cyclesApprox" : "cycles"
+		let knownCycles = dataManager.knownCyclesForPointSet(name: name)
+		/*let cyclesSuffix = searchOptions.skipExactCheck ? "cyclesApprox" : "cycles"
 		let cyclesPath = ["pointset", name, cyclesSuffix]
 		var shortestCycles: [Int: TurnCycle] =
-			(try? dataManager.loadPath(cyclesPath)) ?? [:]
+			(try? dataManager.loadPath(cyclesPath)) ?? [:]*/
 		
 		let searchQueue = DispatchQueue(
 			label: "me.faec.billiards.searchQueue",
@@ -314,19 +289,6 @@ class PointSetCommands {
 		var updatedCount = 0
 		for (index, point) in pointSet.elements.enumerated() {
 			if shouldCancel() { break }
-			let pointApprox = point.asDoubleVec()
-			let approxAngles = Singularities(
-				s0: Double.pi / (2.0 * atan2(pointApprox.y, pointApprox.x)),
-				s1: Double.pi / (2.0 * atan2(pointApprox.y, 1.0 - pointApprox.x))
-			).map { String(format: "%.2f", $0)}
-			let coordsStr = String(
-				format: "(%.4f, %.4f)", pointApprox.x, pointApprox.y)
-			let angleStrs = Singularities(
-				s0: DarkGray("\(approxAngles[.S0])"),
-				s1: "\(approxAngles[.S1])"
-			)
-			let angleStr = String(
-				format: "(S0: \(approxAngles[.S0]), S1: \(approxAngles[.S1]))")
 
 			searchGroup.enter()
 			searchQueue.async {
@@ -337,38 +299,65 @@ class PointSetCommands {
 
 				resultsQueue.sync(flags: .barrier) {
 					// starting search
-					knownCycle = shortestCycles[index]
-					if let lengthBound = knownCycle?.length {
+					if let cycle = knownCycles.cycleForIndex(
+						index, estimated: options.skipExactCheck
+					) {
 						if options.skipKnownPoints {
-							// We already have a cycle for this point
-							//print(ClearCurrentLine(), terminator: "\r")
-							//print("skipping:", Cyan("\(index)"), terminator: "")
 							skip = true
 							return
 						}
 						options.maxPathLength = min(
-							options.maxPathLength, lengthBound - 1)
+							options.maxPathLength, cycle.length - 1)
+						knownCycle = cycle
 					}
 					activeSearches[index] = true
 				}
 				if skip || shouldCancel() { return }
 
-				let result = TrajectorySearchForApexCoords(
-					point, options: options)
+				let searchResult = TrajectorySearchForApexCoords(
+					point, options: options, cancel: shouldCancel)
 				resultsQueue.sync(flags: .barrier) {
 					// search is finished
 					activeSearches.removeValue(forKey: index)
-					searchResults[index] = result
+					searchResults[index] = searchResult
+					var caption = ""
+					if let newCycle = searchResult.shortestCycle {
+						let addResult = knownCycles.addCycle(
+							newCycle, index: index,
+							estimated: options.skipExactCheck)
+						knownCycle = addResult.finalValue
+						if !addResult.valueChanged {
+							caption = DarkGray("no change")
+						} else if addResult.initialValue == nil {
+							caption = "cycle found"
+							foundCount += 1
+						} else {
+							caption = Magenta("found shorter cycle ") +
+								"[\(knownCycle!.length) -> \(newCycle.length)]"
+							updatedCount += 1
+						}
+					} else if knownCycle == nil {
+						caption = Red("no cycle found")
+					} else {
+						caption = DarkGray("no change")
+					}
 					
 					// reset the current line
 					print(ClearCurrentLine(), terminator: "\r")
 
-					print(Cyan("[\(index)]"))
+					let pointApprox = point.asDoubleVec()
+					let approxAngles = Singularities(
+						s0: Double.pi / (2.0 * atan2(pointApprox.y, pointApprox.x)),
+						s1: Double.pi / (2.0 * atan2(pointApprox.y, 1.0 - pointApprox.x))
+					).map { String(format: "%.2f", $0)}
+					let coordsStr = String(
+						format: "(%.4f, %.4f)", pointApprox.x, pointApprox.y)
+					print(Cyan("[\(index)]"), caption)
 					print(Green("  cartesian coords"), coordsStr)
 					print(Green("  angle bounds"))
 					print(DarkGray("    S0: \(approxAngles[.S0])"))
 					print("    S1: \(approxAngles[.S1])")
-					if let oldCycle = knownCycle {
+					/*if let oldCycle = knownCycle {
 						if let newCycle = result.shortestCycle {
 							print(DarkGray("  old cycle"), oldCycle)
 							print(Magenta("  replaced with"), newCycle)
@@ -383,6 +372,9 @@ class PointSetCommands {
 						foundCount += 1
 					} else {
 						print(Red("  no feasible path found"))
+					}*/
+					if let cycle = knownCycle {
+						print(Green("  cycle"), cycle)
 					}
 					let failedCount = searchResults.count -
 						(foundCount + updatedCount)
@@ -402,19 +394,31 @@ class PointSetCommands {
 			(foundCount + updatedCount)
 		print("found \(foundCount), updated \(updatedCount),",
 			"failed \(failedCount).")
-		try! dataManager.save(shortestCycles, toPath: cyclesPath)
+		try! dataManager.saveKnownCycles(
+			knownCycles, pointSetName: name)
 	}
+
+	func cmd_phaseplot(_ args: [String]) {
+		let params = ScanParams(args)
+		guard let name: String = params["name"]
+		else {
+			print("pointset phaseplot: expected name\n")
+			return
+		}
+		//guard let 
+	}
+
 
 	func cmd_plot(_ args: [String]) {
 		let params = ScanParams(args)
-		guard let name = params["name"]
+		guard let name: String = params["name"]
 		else {
 			print("pointset plot: expected name\n")
 			return
 		}
 		let pointSet = try! dataManager.loadPointSet(name: name)
 
-		let outputURL = URL(fileURLWithPath: "plot.png")
+		//let outputURL = URL(fileURLWithPath: "plot.png")
 		let width = 2000
 		let height = 1000
 		let scale = Double(width) * 0.9
@@ -474,6 +478,125 @@ class PointSetCommands {
 		}*/
 	}
 
+	enum CoordinateSystem: String, LosslessStringConvertible {
+		case euclidean
+		case polar
+
+		public init?(_ str: String) {
+			self.init(rawValue: str)
+		}
+
+		public var description: String {
+			return self.rawValue
+		}
+	}
+
+	func cmd_probe(_ args: [String]) {
+		let params = ScanParams(args)
+		guard let name: String = params["name"]
+		else {
+			fputs("pointset probe: expected name\n", stderr)
+			return
+		}
+		guard let targetCoords: Vec2<Double> = params["coords"]
+		else {
+			fputs("pointset probe: expected coords\n", stderr)
+			return
+		}
+		let metric: CoordinateSystem =
+			params["metric"] ?? .euclidean
+		let count: Int = params["count"] ?? 1
+		let pointSet = try! dataManager.loadPointSet(name: name)
+		let knownCycles = dataManager.knownCyclesForPointSet(name: name)
+		let distance: [Double] = pointSet.elements.indices.map { index in
+			let point = pointSet.elements[index].asDoubleVec()
+			var coords: Vec2<Double>
+			switch metric {
+				case .euclidean:
+					coords = point
+				case .polar:
+					let angle0 = atan2(point.y, point.x)
+					let angle1 = atan2(point.y, 1.0 - point.x)
+					coords = Vec2(
+						Double.pi / (2.0 * angle0),
+						Double.pi / (2.0 * angle1)
+					)
+
+			}
+			let offset = coords - targetCoords
+			return sqrt(offset.x * offset.x + offset.y * offset.y)
+		}
+		let sortedIndices = pointSet.elements.indices.sorted {
+			distance[$0] < distance[$1]
+		}
+
+		let precision = 8
+		for index in sortedIndices.prefix(count) {
+			let point = pointSet.elements[index]
+			let pointApprox = point.asDoubleVec()
+			let approxAngles = Singularities(
+				s0: Double.pi / (2.0 * atan2(pointApprox.y, pointApprox.x)),
+				s1: Double.pi / (2.0 * atan2(pointApprox.y, 1.0 - pointApprox.x))
+			).map { String(format: "%.2f", $0)}
+			let distanceStr = String(format: "%.6f", distance[index])
+			let coordsStr = String(
+				format: "(%.\(precision)f, %.\(precision)f)", pointApprox.x, pointApprox.y)
+			print(Cyan("[\(index)]"), "(distance \(distanceStr))")
+			print(Green("  cartesian coords"), coordsStr)
+			print(Green("  angle bounds"))
+			print(DarkGray("    S0: \(approxAngles[.S0])"))
+			print("    S1: \(approxAngles[.S1])")
+			let cycles = knownCycles[index]
+			if let cycle = cycles.estimated {
+				print(Green("  estimated cycle"), cycle)
+			}
+			if let cycle = cycles.verified {
+				print(Green("  verified cycle"), cycle)
+			}
+		}
+
+	}
+
+	func cmd_verify(_ args: [String]) {
+		let params = ScanParams(args)
+		guard let name: String = params["name"]
+		else {
+			fputs("pointset verify: expected name\n", stderr)
+			return
+		}
+		let pointSet = try! dataManager.loadPointSet(name: name)
+		let knownCycles = dataManager.knownCyclesForPointSet(name: name)
+		var confirmedCount = 0
+		var totalCount = 0
+		for index in pointSet.elements.indices {
+			let known = knownCycles[index]
+			guard let cycle = known.estimated
+			else { continue }
+			if let verified = known.verified {
+				if verified.length <= cycle.length {
+					// we already have an "equally good"
+					// cycle, don't change it
+					continue
+				}
+			}
+			let apex = ApexData(coords: pointSet.elements[index])
+			let result = SimpleCycleFeasibilityForTurnPath(
+				cycle.turnPath(), apex: apex)
+			print(Cyan("[\(index)]"))
+			if result?.feasible == true {
+				confirmedCount += 1
+				knownCycles.addCycle(cycle, index: index, estimated: false)
+				print("  verified cycle", cycle)
+			} else {
+				print("  verification failed on cycle", cycle)
+			}
+			totalCount += 1
+		}
+		print("verified \(confirmedCount) / \(totalCount)")
+		try! dataManager.saveKnownCycles(
+			knownCycles, pointSetName: name)
+	}
+
 	func cmd_delete(_ args: [String]) {
 		guard let name = args.first
 		else {
@@ -505,8 +628,12 @@ class PointSetCommands {
 			cmd_create(Array(args[1...]))
 		case "plot":
 			cmd_plot(Array(args[1...]))
+		case "probe":
+			cmd_probe(Array(args[1...]))
 		case "search":
 			cmd_search(Array(args[1...]))
+		case "verify":
+			cmd_verify(Array(args[1...]))
 		case "info":
 			cmd_info(Array(args[1...]))
 		default:

@@ -24,7 +24,8 @@ func RandomFlipTrajectory<k: Field & Comparable & Numeric>(apex: Vec2<k>) -> Vec
 
 public func TrajectorySearchForApexCoords(
 	_ apexCoords: Vec2<GmpRational>,
-	options opts: TrajectorySearchOptions? = nil
+	options opts: TrajectorySearchOptions? = nil,
+	cancel: (() -> Bool)? = nil
 ) -> TrajectorySearchResult {
 	let options = opts ?? TrajectorySearchOptions()
 	var cycles: [TurnCycle] = []
@@ -50,7 +51,7 @@ public func TrajectorySearchForApexCoords(
 	}
 
 	for _ in 1...options.attemptCount {
-		if options.shouldCancel?() == true {
+		if cancel?() == true {
 			break
 		}
 		// choose random trajectory
@@ -97,7 +98,6 @@ public struct TrajectorySearchOptions {
 	public var skipExactCheck: Bool = false
 	public var attemptCount: Int = 100
 	public var maxPathLength: Int = 100
-	public var shouldCancel: (() -> Bool)? = nil
 
 	public init() { }
 }

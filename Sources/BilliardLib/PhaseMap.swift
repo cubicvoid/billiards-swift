@@ -135,11 +135,6 @@ public class QuadPhaseMap<
 
 }
 
-public enum AngleBound {
-  case pi
-  case twoPi
-}
-
 
 public class DiscPhaseMap<k: Field & Comparable & CustomStringConvertible> {
   public let apex: Vec2<k>
