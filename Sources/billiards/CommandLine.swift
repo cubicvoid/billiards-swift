@@ -272,7 +272,8 @@ class PointSetCommands {
 					toSet.printPointIndex(
 						targetIndex,
 						knownCycles: toCycles,
-						precision: 8)
+						precision: 8,
+						caption: caption)
 				}
 			}
 		}
