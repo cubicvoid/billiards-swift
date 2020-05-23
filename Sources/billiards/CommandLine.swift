@@ -173,7 +173,7 @@ class PointSetCommands {
 
 	func cmd_copyCycles(
 		_ args: [String],
-		shouldCancel: () -> Bool
+		shouldCancel: (() -> Bool)?
 	) {
 		let params = ScanParams(args)
 		guard let fromName: String = params["from"]
@@ -217,11 +217,12 @@ class PointSetCommands {
 		var updatedCount = 0
 		var unchangedCount = 0
 		for targetIndex in toSet.elements.indices {
-			if shouldCancel() { break}
+			if shouldCancel?() == true { break }
 
 			copyGroup.enter()
 			copyQueue.async {
 				defer { copyGroup.leave() }
+				if shouldCancel?() == true { return }
 				let apexCoords = toSet.elements[targetIndex]
 				let apex = ApexData(coords: apexCoords)
 
@@ -244,6 +245,7 @@ class PointSetCommands {
 				var foundCycle: TurnCycle? = nil
 				var checked: Set<TurnCycle> = []
 				for cycle in candidates {
+					if shouldCancel?() == true { return }
 					if checked.contains(cycle) { continue }
 					checked.insert(cycle)
 
