@@ -220,7 +220,8 @@ class PointSetCommands {
 			if shouldCancel() { break}
 
 			copyGroup.enter()
-				copyQueue.async {
+			copyQueue.async {
+				defer { copyGroup.leave() }
 				let apexCoords = toSet.elements[targetIndex]
 				let apex = ApexData(coords: apexCoords)
 
@@ -277,6 +278,7 @@ class PointSetCommands {
 				}
 			}
 		}
+		copyGroup.wait()
 		if updatedCount > 0 {
 			print("\(foundCount) found, \(updatedCount) updated, \(unchangedCount) unchanged")
 			print("saving...")
