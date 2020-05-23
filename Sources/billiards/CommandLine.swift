@@ -266,15 +266,14 @@ class PointSetCommands {
 							caption = "cycle found"
 						}
 						toCycles[targetIndex] = newCycle
+						toSet.printPointIndex(
+							targetIndex,
+							knownCycles: toCycles,
+							precision: 8,
+							caption: caption)
 					} else {
 						unchangedCount += 1
-						caption = DarkGray("no change")
 					}
-					toSet.printPointIndex(
-						targetIndex,
-						knownCycles: toCycles,
-						precision: 8,
-						caption: caption)
 				}
 			}
 		}
