@@ -173,28 +173,80 @@ class PointSetCommands {
 		}
 	}
 
-	func cmd_search(_ args: [String]) {
-		print("search")
+	func cmd_copyCycles(
+		_ args: [String],
+		shouldCancel: () -> Bool
+	) {
+		let params = ScanParams(args)
+		guard let fromName: String = params["from"]
+		else {
+			fputs("pointset copyCycles: expected from\n", stderr)
+			return
+		}
+		guard let toName: String = params["to"]
+		else {
+			fputs("pointset copyCycles: expected to\n", stderr)
+			return
+		}
+		let neighborCount: Int = params["neighbors"] ?? 1
 
-		signal(SIGINT, SIG_IGN)
-		let signalQueue = DispatchQueue(label: "me.faec.billiards.signalQueue")
-		var sigintCount = 0
-		//sigintSrc.suspend()
-		let sigintSrc = DispatchSource.makeSignalSource(
-			signal: SIGINT,
-			queue: signalQueue)
-		sigintSrc.setEventHandler {
-			print("Hi i got a sigint")
-			sigintCount += 1
-			if sigintCount > 1 {
-				exit(0)
+		let fromSet = try! dataManager.loadPointSet(name: fromName)
+		let toSet = try! dataManager.loadPointSet(name: toName)
+		let fromCycles = dataManager.knownCyclesForPointSet(
+			name: fromName)
+		var toCycles = dataManager.knownCyclesForPointSet(
+			name: toName)
+
+		let fromSortCoords = fromSet.elements.map { $0.asBiphase() }
+		let toSortCoords = toSet.elements.map { $0.asBiphase() }
+
+		var updatedCount = 0
+		for (toIndex, toCoords) in toSet.elements.enumerated() {
+			if shouldCancel() { break}
+			let apex = ApexData(coords: toCoords)
+			func distance(_ fromIndex: Int) -> Double {
+				let from = fromSortCoords[fromIndex]
+				let to = toSortCoords[toIndex]
+				let dx = from[.S0] - to[.S0]
+				let dy = from[.S1] - to[.S1]
+				return sqrt(dx * dx + dy * dy)
 			}
-		}
-		sigintSrc.resume()
-		func shouldCancel() -> Bool {
-			return sigintCount > 0
-		}
+			let fromIndices = Array(fromSet.elements.indices).sorted {
+				distance($0) < distance($1)
+			}
+			for fromIndex in fromIndices.prefix(neighborCount) {
+				if shouldCancel() { break }
+				if let fromCycle = fromCycles[fromIndex] {
+					if let toCycle = toCycles[toIndex] {
+						if toCycle.length <= fromCycle.length {
+							// nothing to gain, skip
+							continue
+						}
+					}
+					if let result = SimpleCycleFeasibilityForTurnPath(
+						fromCycle.turnPath(), apex: apex)
+					{
+						if result.feasible {
+							print("updated", Cyan("[\(toIndex)]"))
+							updatedCount += 1
+							toCycles[toIndex] = fromCycle
+						}
+					}
+				}
+			}
 
+		}
+		if updatedCount > 0 {
+			print("Updated \(updatedCount), saving...")
+			try! dataManager.saveKnownCycles(
+				toCycles, pointSetName: toName)
+		}
+	}
+
+	func cmd_search(
+		_ args: [String],
+		shouldCancel: (() -> Bool)?
+	) {
 		var searchOptions = TrajectorySearchOptions()
 
 		let params = ScanParams(args)
@@ -229,7 +281,7 @@ class PointSetCommands {
 		var foundCount = 0
 		var updatedCount = 0
 		for (index, point) in pointSet.elements.enumerated() {
-			if shouldCancel() { break }
+			if shouldCancel?() == true { break }
 
 			searchGroup.enter()
 			searchQueue.async {
@@ -249,7 +301,7 @@ class PointSetCommands {
 					}
 					activeSearches[index] = true
 				}
-				if skip || shouldCancel() { return }
+				if skip || shouldCancel?() == true { return }
 
 				let searchResult = TrajectorySearchForApexCoords(
 					point, options: options, cancel: shouldCancel)
@@ -469,26 +521,49 @@ class PointSetCommands {
 	func run(_ args: [String]) {
 		guard let command = args.first
 		else {
-			print("pointset: expected command")
+			fputs("pointset: expected command", stderr)
 			exit(1)
 		}
+		signal(SIGINT, SIG_IGN)
+		let signalQueue = DispatchQueue(label: "me.faec.billiards.signalQueue")
+		var sigintCount = 0
+		//sigintSrc.suspend()
+		let sigintSrc = DispatchSource.makeSignalSource(
+			signal: SIGINT,
+			queue: signalQueue)
+		sigintSrc.setEventHandler {
+			print(White("Shutting down..."))
+			sigintCount += 1
+			if sigintCount > 1 {
+				exit(0)
+			}
+		}
+		sigintSrc.resume()
+		func shouldCancel() -> Bool {
+			return sigintCount > 0
+		}
+
 		switch command {
-		case "list":
-			cmd_list()
-		case "print":
-			cmd_print(Array(args[1...]))
-		case "delete":
-			cmd_delete(Array(args[1...]))
+		case "copyCycles":
+			cmd_copyCycles(Array(args[1...]),
+				shouldCancel: shouldCancel)
 		case "create":
 			cmd_create(Array(args[1...]))
+		case "delete":
+			cmd_delete(Array(args[1...]))
+		case "info":
+			cmd_info(Array(args[1...]))
+		case "list":
+			cmd_list()
 		case "plot":
 			cmd_plot(Array(args[1...]))
+		case "print":
+			cmd_print(Array(args[1...]))
 		case "probe":
 			cmd_probe(Array(args[1...]))
 		case "search":
-			cmd_search(Array(args[1...]))
-		case "info":
-			cmd_info(Array(args[1...]))
+			cmd_search(Array(args[1...]),
+				shouldCancel: shouldCancel)
 		default:
 			print("Unrecognized command '\(command)'")
 		}
@@ -513,6 +588,16 @@ struct AggregateStats {
 	var maxSegments: Int = 0
 }
 
+extension Vec2 where R: Numeric {
+	func asBiphase() -> Singularities<Double> {
+		let xApprox = x.asDouble()
+		let yApprox = y.asDouble()
+		return Singularities(
+			s0: Double.pi / (2.0 * atan2(yApprox, xApprox)),
+			s1: Double.pi / (2.0 * atan2(yApprox, 1.0 - xApprox)))
+	}
+}
+
 extension PointSet {
 	func printPointIndex(
 		_ index: Int,
@@ -522,15 +607,13 @@ extension PointSet {
 	) {
 		let point = self.elements[index]
 		let pointApprox = point.asDoubleVec()
-		let approxAngles = Singularities(
-			s0: Double.pi / (2.0 * atan2(pointApprox.y, pointApprox.x)),
-			s1: Double.pi / (2.0 * atan2(pointApprox.y, 1.0 - pointApprox.x))
-		).map { String(format: "%.\(precision)f", $0)}
+		let approxAngles = pointApprox.asBiphase().map {
+			String(format: "%.\(precision)f", $0) }
 		let coordsStr = String(
 			format: "(%.\(precision)f, %.\(precision)f)", pointApprox.x, pointApprox.y)
 		print(Cyan("[\(index)]"), caption)
 		print(Green("  cartesian coords"), coordsStr)
-		print(Green("  bipolar coords"))
+		print(Green("  biphase coords"))
 		print(DarkGray("    S0: \(approxAngles[.S0])"))
 		print("    S1: \(approxAngles[.S1])")
 		if let cycle = knownCycles[index] {

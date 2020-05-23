@@ -26,6 +26,10 @@ public func BrightYellow(_ str: String) -> String {
 	return "\u{001B}[33;1m\(str)\u{001B}[0m"
 }
 
+public func White(_ str: String) -> String {
+	return "\u{001B}[37m\(str)\u{001B}[0m"
+}
+
 public func ClearCurrentLine() -> String {
 	"\u{001B}[2K"
 }
