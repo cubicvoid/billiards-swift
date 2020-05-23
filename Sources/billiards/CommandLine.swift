@@ -246,6 +246,10 @@ class PointSetCommands {
 						}
 						options.maxPathLength = min(
 							options.maxPathLength, cycle.length - 1)
+						if options.maxPathLength < 4 {
+							skip = true
+							return
+						}
 					}
 					activeSearches[index] = true
 				}
