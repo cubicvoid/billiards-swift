@@ -50,6 +50,12 @@ public func TrajectorySearchForApexCoords(
 		}
 	}
 
+	if options.maxPathLength < 4 {
+		return TrajectorySearchResult(
+			cycles: cycles,
+			shortestCycle: shortestCycle)
+	}
+
 	for _ in 1...options.attemptCount {
 		if cancel?() == true {
 			break
