@@ -147,8 +147,6 @@ class PointSetCommands {
 		}
 	}
 
-
-
 	func cmd_info(_ args: [String]) {
 		let params = ScanParams(args)
 		guard let name: String = params["name"]
@@ -197,47 +195,90 @@ class PointSetCommands {
 		var toCycles = dataManager.knownCyclesForPointSet(
 			name: toName)
 
-		let fromSortCoords = fromSet.elements.map { $0.asBiphase() }
-		let toSortCoords = toSet.elements.map { $0.asBiphase() }
+		let fromSortCoords = fromSet.elements.map {
+			 polarFromCartesian($0.asDoubleVec()) }
+		let toSortCoords = toSet.elements.map {
+			polarFromCartesian($0.asDoubleVec()) }
+		func distance(fromIndex: Int, toIndex: Int) -> Double {
+			let coords = fromSortCoords[fromIndex]
+			let center = toSortCoords[toIndex]
+			let offset = coords - center
+			return sqrt(offset.x * offset.x + offset.y * offset.y)
+		}
 
+		let copyQueue = DispatchQueue(
+			label: "me.faec.billiards.copyQueue",
+			attributes: .concurrent)
+		let resultsQueue = DispatchQueue(
+			label: "me.faec.billiards.resultsQueue")
+		let copyGroup = DispatchGroup()
+
+		var foundCount = 0
 		var updatedCount = 0
-		for (toIndex, toCoords) in toSet.elements.enumerated() {
+		var unchangedCount = 0
+		for targetIndex in toSet.elements.indices {
 			if shouldCancel() { break}
-			let apex = ApexData(coords: toCoords)
-			func distance(_ fromIndex: Int) -> Double {
-				let from = fromSortCoords[fromIndex]
-				let to = toSortCoords[toIndex]
-				let dx = from[.S0] - to[.S0]
-				let dy = from[.S1] - to[.S1]
-				return sqrt(dx * dx + dy * dy)
-			}
-			let fromIndices = Array(fromSet.elements.indices).sorted {
-				distance($0) < distance($1)
-			}
-			for fromIndex in fromIndices.prefix(neighborCount) {
-				if shouldCancel() { break }
-				if let fromCycle = fromCycles[fromIndex] {
-					if let toCycle = toCycles[toIndex] {
-						if toCycle.length <= fromCycle.length {
-							// nothing to gain, skip
-							continue
+
+			copyGroup.enter()
+				copyQueue.async {
+				let apexCoords = toSet.elements[targetIndex]
+				let apex = ApexData(coords: apexCoords)
+
+				let candidates = Array(fromSet.elements.indices).sorted {
+					distance(fromIndex: $0, toIndex: targetIndex) <
+					distance(fromIndex: $1, toIndex: targetIndex)
+				}.prefix(neighborCount).compactMap
+				{ (index: Int) -> TurnCycle? in
+					if let cycle = fromCycles[index] {
+						if let knownCycle = toCycles[targetIndex] {
+							if knownCycle.length <= cycle.length {
+								return nil
+							}
 						}
+						return cycle
 					}
-					if let result = SimpleCycleFeasibilityForTurnPath(
-						fromCycle.turnPath(), apex: apex)
-					{
-						if result.feasible {
-							print("updated", Cyan("[\(toIndex)]"))
-							updatedCount += 1
-							toCycles[toIndex] = fromCycle
-						}
+					return nil
+				}.sorted { $0.length < $1.length }
+
+				var foundCycle: TurnCycle? = nil
+				var checked: Set<TurnCycle> = []
+				for cycle in candidates {
+					if checked.contains(cycle) { continue }
+					checked.insert(cycle)
+
+					let result = SimpleCycleFeasibilityForTurnPath(
+						cycle.turnPath(), apex: apex)
+					if result?.feasible == true {
+						foundCycle = cycle
+						break
 					}
 				}
+				resultsQueue.sync(flags: .barrier) {
+					var caption: String
+					if let newCycle = foundCycle {
+						if let oldCycle = toCycles[targetIndex] {
+							updatedCount += 1
+							caption = Magenta("updated ") +
+								"length \(oldCycle.length) -> \(newCycle.length)"
+						} else {
+							foundCount += 1
+							caption = "cycle found"
+						}
+						toCycles[targetIndex] = newCycle
+					} else {
+						unchangedCount += 1
+						caption = DarkGray("no change")
+					}
+					toSet.printPointIndex(
+						targetIndex,
+						knownCycles: toCycles,
+						precision: 8)
+				}
 			}
-
 		}
 		if updatedCount > 0 {
-			print("Updated \(updatedCount), saving...")
+			print("\(foundCount) found, \(updatedCount) updated, \(unchangedCount) unchanged")
+			print("saving...")
 			try! dataManager.saveKnownCycles(
 				toCycles, pointSetName: toName)
 		}
@@ -570,6 +611,8 @@ class PointSetCommands {
 	}
 }
 
+
+
 class CycleStats {
 	let cycle: TurnCycle
 	var pointCount = 0
@@ -597,6 +640,15 @@ extension Vec2 where R: Numeric {
 			s1: Double.pi / (2.0 * atan2(yApprox, 1.0 - xApprox)))
 	}
 }
+
+func polarFromCartesian(_ coords: Vec2<Double>) -> Vec2<Double> {
+	return Vec2(
+		Double.pi / (2.0 * atan2(coords.y, coords.x)),
+		Double.pi / (2.0 * atan2(coords.y, 1.0 - coords.x)))
+}
+
+/*func cartesianFromPolar(_ coords: Vec2<Double>) -> Vec2<Double> {
+}*/
 
 extension PointSet {
 	func printPointIndex(
