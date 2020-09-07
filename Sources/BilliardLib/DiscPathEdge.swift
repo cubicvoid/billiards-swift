@@ -1,17 +1,5 @@
 import Foundation
 
-public enum Side: Negatable {
-	case left
-	case right
-
-	public static prefix func -(s: Side) -> Side {
-		switch s {
-			case .left: return .right
-			case .right: return .left
-		}
-	}
-}
-
 public class DiscPathEdge<k: Field & Comparable> {
 	public var coords: Singularities<Vec2<k>>
 	public var orientation: Singularity.Orientation
