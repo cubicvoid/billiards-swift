@@ -32,8 +32,8 @@ public func TrajectorySearchForApexCoords(
 	var shortestCycle: TurnCycle? = nil
 	let apexCoordsApprox = apexCoords.asDoubleVec()
 	//print("search(apex = \(apexCoordsApprox))")
-	let apex = ApexData(coords: apexCoords)
-	let apexApprox = ApexData(coords: apexCoordsApprox)
+	let context = ApexData(apex: apexCoords)
+	let apexApprox = ApexData(apex: apexCoordsApprox)
 
 	func addCycleForPath(_ path: TurnPath) {
 		let cycle = try! TurnCycle(repeatingPath: path)
@@ -74,7 +74,7 @@ public func TrajectorySearchForApexCoords(
 			forSteps: stepCount
 		) {
 			// make sure it works with exact computation too
-			if let result = SimpleCycleFeasibilityForTurnPath(path, apex: apex) {
+			if let result = SimpleCycleFeasibilityForTurnPath(path, context: context) {
 				if result.feasible {
 					addCycleForPath(path)
 				}
@@ -108,14 +108,14 @@ public struct TrajectorySearchOptions {
 
 func SearchTrajectory<k: Field & Comparable & Numeric>(
 	_ trajectory: Vec3<k>,
-	withApex apex: ApexData<k>,
+	withApex context: ApexData<k>,
 	forSteps stepCount: Int
 ) -> TurnPath? {
 	let startingCoords = Singularities(
 		s0: Vec2<k>.origin,
 		s1: Vec2(x: k.one, y: k.zero))
 	let firstEdge: DiscPathEdge<k> = DiscPathEdge(
-		apex: apex, coords: startingCoords)
+		context: context, coords: startingCoords)
 
 	var turns: [Int] = []
 	var angles = Singularities(s0: 0, s1: 0)
@@ -131,7 +131,7 @@ func SearchTrajectory<k: Field & Comparable & Numeric>(
 			// possible cycle
 			let turnPath = TurnPath(initialOrientation: .forward, turns: turns)
 			if let result = SimpleCycleFeasibilityForTurnPath(
-				turnPath, apex: apex
+				turnPath, context: context
 			) {
 				if result.feasible { return turnPath }
 			}

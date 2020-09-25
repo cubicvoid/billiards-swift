@@ -30,7 +30,7 @@ class TurnCycleTests: XCTestCase {
 		for test in tests {
 			let cycle = try! TurnCycle(repeatingPath: test.turnPath)
 			XCTAssertEqual(
-				cycle.monotonicSegments,
+				cycle.segments,
 				test.expectedSegments,
 				"Wrong segment list when repeating turn path \(test.turnPath)")
 

@@ -222,15 +222,16 @@ class PointSetCommands {
 		var toCycles = dataManager.knownCyclesForPointSet(
 			name: toName)
 
-		let fromSortCoords = fromSet.elements.map {
-			 polarFromCartesian($0.asDoubleVec()) }
-		let toSortCoords = toSet.elements.map {
-			polarFromCartesian($0.asDoubleVec()) }
+		let fromRadii = fromSet.elements.map(biradialFromApex)
+			 //polarFromCartesian($0.asDoubleVec()) }
+		let toRadii = toSet.elements.map(biradialFromApex)
+			//polarFromCartesian($0.asDoubleVec()) }
 		func distance(fromIndex: Int, toIndex: Int) -> Double {
-			let coords = fromSortCoords[fromIndex]
-			let center = toSortCoords[toIndex]
-			let offset = coords - center
-			return sqrt(offset.x * offset.x + offset.y * offset.y)
+			let rFrom = fromRadii[fromIndex]
+			let rTo = toRadii[toIndex]
+			let dr0 = rTo[.S0].asDouble() - rFrom[.S0].asDouble()
+			let dr1 = rTo[.S1].asDouble() - rFrom[.S1].asDouble()
+			return dr0 * dr0 + dr1 * dr1
 		}
 
 		let copyQueue = DispatchQueue(
@@ -244,14 +245,14 @@ class PointSetCommands {
 		var updatedCount = 0
 		var unchangedCount = 0
 		for targetIndex in toSet.elements.indices {
+			let targetApex = toSet.elements[targetIndex]
 			if shouldCancel?() == true { break }
 
 			copyGroup.enter()
 			copyQueue.async {
 				defer { copyGroup.leave() }
 				if shouldCancel?() == true { return }
-				let apexCoords = toSet.elements[targetIndex]
-				let apex = ApexData(coords: apexCoords)
+				let ctx = ApexData(apex: targetApex)
 
 				let candidates = Array(fromSet.elements.indices).sorted {
 					distance(fromIndex: $0, toIndex: targetIndex) <
@@ -277,7 +278,7 @@ class PointSetCommands {
 					checked.insert(cycle)
 
 					let result = SimpleCycleFeasibilityForTurnPath(
-						cycle.turnPath(), apex: apex)
+						cycle.turnPath(), context: ctx)
 					if result?.feasible == true {
 						foundCycle = cycle
 						break
@@ -307,11 +308,46 @@ class PointSetCommands {
 			}
 		}
 		copyGroup.wait()
-		if updatedCount > 0 {
+		if foundCount > 0 || updatedCount > 0 {
 			print("\(foundCount) found, \(updatedCount) updated, \(unchangedCount) unchanged")
 			print("saving...")
 			try! dataManager.saveKnownCycles(
 				toCycles, pointSetName: toName)
+		}
+	}
+
+	func cmd_validate(_ args: [String]) {
+		let params = ScanParams(args)
+		guard let name: String = params["name"]
+		else {
+			fputs("pointset validate: expected name\n", stderr)
+			return
+		}
+		guard let index: Int = params["index"]
+		else {
+			fputs("pointset validate: expected index\n", stderr)
+			return
+		}
+
+		let pointSet = try! dataManager.loadPointSet(name: name)
+		let knownCycles = dataManager.knownCyclesForPointSet(name: name)
+
+		if index < 0 || index >= pointSet.elements.count {
+			fputs("\(name) has no element at index \(index)", stderr)
+			return
+		}
+		let point = pointSet.elements[index]
+		guard let cycle = knownCycles[index]
+		else {
+			fputs("\(name)[\(index)] has no known cycle", stderr)
+			return
+		}
+		let ctx = ApexData(apex: point)
+		let result = SimpleCycleFeasibilityForTurnPath(cycle.turnPath(), context: ctx)
+		if result?.feasible == true {
+			print("Passed!")
+		} else {
+			print("Failed!")
 		}
 	}
 
@@ -371,7 +407,9 @@ class PointSetCommands {
 						options.maxPathLength = min(
 							options.maxPathLength, cycle.length - 1)
 					}
-					activeSearches[index] = true
+					if shouldCancel?() != true {
+						activeSearches[index] = true
+					}
 				}
 				if skip || shouldCancel?() == true { return }
 
@@ -487,7 +525,7 @@ class PointSetCommands {
 
 		func colorForCoords(_ z: Vec2<Double>) -> RGB {
 			// angle scaled to +-1
-			var angle = atan2(z.y, z.x) / Double.pi
+			let angle = atan2(z.y, z.x) / Double.pi
 			if angle < 0 {
 				let positiveAngle = angle + 1.0
 				let paletteIndex = Int(positiveAngle * Double(palette.count))
@@ -620,7 +658,7 @@ class PointSetCommands {
 			return palette[paletteIndex]
 		}*/
 		func colorForCoords(_ z: Vec2<Double>) -> RGB {
-			var angle = 0.5 + 0.5 * atan2(-z.x, z.y) / Double.pi//atan2(z.y, z.x) / Double.pi
+			let angle = 0.5 + 0.5 * atan2(-z.x, z.y) / Double.pi//atan2(z.y, z.x) / Double.pi
 			let paletteIndex = Int(angle * Double(palette.count - 1))
 			return palette[paletteIndex]
 		}
@@ -868,6 +906,8 @@ class PointSetCommands {
 		case "search":
 			cmd_search(Array(args[1...]),
 				shouldCancel: shouldCancel)
+		case "validate":
+			cmd_validate(Array(args[1...]))
 		default:
 			print("Unrecognized command '\(command)'")
 		}
@@ -908,6 +948,10 @@ func polarFromCartesian(_ coords: Vec2<Double>) -> Vec2<Double> {
 	return Vec2(
 		Double.pi / (2.0 * atan2(coords.y, coords.x)),
 		Double.pi / (2.0 * atan2(coords.y, 1.0 - coords.x)))
+}
+
+func biradialFromApex<k: Field>(_ coords: Vec2<k>) -> Singularities<k> {
+	return Singularities(coords.x / coords.y, (k.one - coords.x) / coords.y)
 }
 
 /*func cartesianFromPolar(_ coords: Vec2<Double>) -> Vec2<Double> {
@@ -970,6 +1014,7 @@ extension PointSet {
 		caption: String = ""
 	) {
 		let point = self.elements[index]
+		let radii = biradialFromApex(point)
 		let pointApprox = point.asDoubleVec()
 		let approxAngles = pointApprox.asBiphase().map {
 			String(format: "%.\(precision)f", $0) }
@@ -977,6 +1022,9 @@ extension PointSet {
 			format: "(%.\(precision)f, %.\(precision)f)", pointApprox.x, pointApprox.y)
 		print(Cyan("[\(index)]"), caption)
 		print(Green("  cartesian coords"), coordsStr)
+		print(Green("  biradial coords"))
+		print(DarkGray("    S0: \(radii[.S0].asDouble())"))
+		print("    S1: \(radii[.S1].asDouble())")
 		print(Green("  biphase coords"))
 		print(DarkGray("    S0: \(approxAngles[.S0])"))
 		print("    S1: \(approxAngles[.S1])")

@@ -5,27 +5,27 @@ public class DiscPathEdge<k: Field & Comparable> {
 	public var orientation: Singularity.Orientation
 	public var rotationCounts: Singularities<Int>
 	
-	let apex: ApexData<k>
+	let ctx: ApexData<k>
 	
 	public init(
-		apex: ApexData<k>,
+		context: ApexData<k>,
 		coords: Singularities<Vec2<k>>,
 		orientation: Singularity.Orientation,
 		rotationCounts: Singularities<Int>
 	) {
-		self.apex = apex
+		self.ctx = context
 		self.coords = coords
 		self.orientation = orientation
 		self.rotationCounts = rotationCounts
 	}
 	
 	public convenience init(
-		apex: ApexData<k>,
+		context: ApexData<k>,
 		coords: Singularities<Vec2<k>>,
 		orientation: Singularity.Orientation = .forward
 	) {
 		self.init(
-			apex: apex,
+			context: context,
 			coords: coords,
 			orientation: orientation,
 			rotationCounts: Singularities(0, 0))
@@ -48,7 +48,7 @@ public class DiscPathEdge<k: Field & Comparable> {
 		}
 		let baseCoords = coords[.S0]
 		let offset = coords[.S1] - coords[.S0]
-		var apexCoeff = apex.coordsOverBase[.forward]!
+		var apexCoeff = ctx.coords
 		if side == .right {
 			apexCoeff = apexCoeff.complexConjugate()
 		}
@@ -68,7 +68,7 @@ public class DiscPathEdge<k: Field & Comparable> {
 		_ turnDegree: Int,
 		angleBound: AngleBound?
 	) -> DiscPathEdge? {
-		let rotation = apex.rotation[orientation.from]
+		let rotation = ctx.rotation[orientation.from]
 
 		guard let rotationCoeff = rotation.pow(turnDegree, angleBound: angleBound)
 		else { return nil }
@@ -83,7 +83,7 @@ public class DiscPathEdge<k: Field & Comparable> {
 			rotationCounts.withValue(newCount, forSingularity: orientation.from)
 		
 		return DiscPathEdge(
-			apex: apex,
+			context: ctx,
 			coords: newCoords,
 			orientation: orientation,
 			rotationCounts: newRotationCounts)
@@ -91,7 +91,7 @@ public class DiscPathEdge<k: Field & Comparable> {
 	
 	public func reversed() -> DiscPathEdge<k> {
 		return DiscPathEdge(
-			apex: apex,
+			context: ctx,
 			coords: coords,
 			orientation: -orientation,
 			rotationCounts: rotationCounts)
@@ -113,7 +113,7 @@ public class DiscPathEdge<k: Field & Comparable> {
 		guard let centerSide = PointSide(center, ofTrajectory: trajectory)
 		else { return nil }
 
-		let rotation = apex.rotation[orientation.to]
+		let rotation = ctx.rotation[orientation.to]
 		let maxTurnMagnitude = rotation.maxTurnMagnitudeForBound(.pi)
 		// The offset of the starting boundary apex from the center of the
 		// target disc.

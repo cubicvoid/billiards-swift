@@ -13,10 +13,10 @@ class DiscPathEdgeTests: XCTestCase {
   
   func testApexCoordsForSide() {
     let apexCoords = Vec2(x: k(1, over: 2), y: k(1, over: 2))
-    let apex = ApexData(coords: apexCoords)
+    let apex = ApexData(apex: apexCoords)
     let base = Singularities(Vec2.origin, Vec2(x: k.one, y: k.zero))
     let edge0 = DiscPathEdge(
-      apex: apex, coords: base,
+      context: apex, coords: base,
       orientation: Singularity.Orientation.to(.S1),
       rotationCounts: Singularities(s0: 0, s1: 0))
     XCTAssertEqual(edge0.fromCoords(), Vec2.origin)
@@ -51,10 +51,10 @@ class DiscPathEdgeTests: XCTestCase {
 
   func testNextTurnForTrajectory() {
     let apexCoords = Vec2(x: k(1, over: 2), y: k(1, over: 2))
-    let apex = ApexData(coords: apexCoords)
+    let apex = ApexData(apex: apexCoords)
     let base = Singularities(Vec2.origin, Vec2(x: k.one, y: k.zero))
     let edge0 = DiscPathEdge(
-      apex: apex, coords: base,
+      context: apex, coords: base,
       orientation: Singularity.Orientation.to(.S1),
       rotationCounts: Singularities(s0: 0, s1: 0))
     

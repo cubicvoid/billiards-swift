@@ -42,13 +42,22 @@ public struct SimpleCycleFeasibilityResult<k: Field & Comparable & Numeric> {
 // whether the upper and lower boundaries have a positive separation.
 public func SimpleCycleFeasibilityForTurnPath<k: Field & Comparable & Numeric>(
 	_ turnPath: TurnPath,
-	apex: ApexData<k>
+	context: ApexData<k>
 ) -> SimpleCycleFeasibilityResult<k>? {
 	if turnPath.turns.count % 2 != 0 {
 		return nil
 	}
+	var totals = Singularities(0, 0)
+	var o = turnPath.initialOrientation
+	for turn in turnPath.turns {
+		totals[o.to] += turn
+		o = -o
+	}
+	if totals[.S0] != 0 || totals[.S1] != 0 {
+		return nil
+	}
 	var edge = DiscPathEdge(
-		apex: apex,
+		context: context,
 		coords: Singularities(
 			s0: Vec2<k>.origin,
 			s1: Vec2(k.one, k.zero)),
@@ -57,6 +66,8 @@ public func SimpleCycleFeasibilityForTurnPath<k: Field & Comparable & Numeric>(
 	var leftBoundaries: [Vec2<k>] = []
 	var rightBoundaries: [Vec2<k>] = []
 
+	leftBoundaries.append(edge.apexCoordsForSide(.left))
+	rightBoundaries.append(edge.apexCoordsForSide(.right))
 	for turn in turnPath.turns {
 		let turnSign = Sign.of(turn)!
 		guard let newEdge = edge.reversed().turnedBy(turn, angleBound: .pi)
@@ -74,7 +85,7 @@ public func SimpleCycleFeasibilityForTurnPath<k: Field & Comparable & Numeric>(
 		leftBoundaries.append(edge.apexCoordsForSide(.left))
 		rightBoundaries.append(edge.apexCoordsForSide(.right))
 	}
-	let offset = edge.fromCoords()
+	let offset = leftBoundaries.last! - leftBoundaries[0]
 
 	// the vector orthogonal to the offset. higher inner product with this
 	// vector means further left relative to the offset trajectory.
@@ -84,19 +95,19 @@ public func SimpleCycleFeasibilityForTurnPath<k: Field & Comparable & Numeric>(
 	let rightHeights = rightBoundaries.map(offsetNorm.dot)
 
 	return SimpleCycleFeasibilityResult(
-		apex: apex, turnPath: turnPath,
+		apex: context, turnPath: turnPath,
 		margin: leftHeights.min()! - rightHeights.max()!)
 }
 
 public func Thingie<k: Field & Comparable & Numeric>(
 	_ turnPath: TurnPath,
-	apex: ApexData<k>
+	context: ApexData<k>
 ) -> SimpleCycleFeasibilityResult<k>? {
 	if turnPath.turns.count % 2 != 0 {
 		return nil
 	}
 	var edge = DiscPathEdge(
-		apex: apex,
+		context: context,
 		coords: Singularities(
 			s0: Vec2<k>.origin,
 			s1: Vec2(k.one, k.zero)),
@@ -132,6 +143,6 @@ public func Thingie<k: Field & Comparable & Numeric>(
 	let rightHeights = rightBoundaries.map(offsetNorm.dot)
 
 	return SimpleCycleFeasibilityResult(
-		apex: apex, turnPath: turnPath,
+		apex: context, turnPath: turnPath,
 		margin: leftHeights.min()! - rightHeights.max()!)
 }
