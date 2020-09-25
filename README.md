@@ -32,19 +32,16 @@ This repo has a lot of experimental utilities and options, and is alpha
 software. But if you want to try it out you might do something like this:
 
 ```
-.build/release/BilliardSearch \
-  --apexCount 100 --gridDensity 5000000000 \
-  --maxFanCount 20 \
-  --maxFlipCount 8 \
-  --unsafeMath
+.build/debug/billiards pointset create name:awoo count:1000
+.build/debug/billiards pointset search name:awoo
 ```
 
-This will generate 100 random triangles, and try to find periodic billiard
-paths for each of them. It will write its results to `Data/`.
+This will generate 1000 random triangles, and try to find periodic billiard
+paths for each of them. It will write its results to `data/`.
 
 ### Run interactively
 
-The scripts `BilliardSearch/repl-debug` and `BilliardSearch/repl-release`
+The scripts `repl-debug` and `repl-release`
 will let you use `BilliardLib` in an interactive Swift repl using the
 specified build configuration. They assume that the library is successfully
 built as described above.
