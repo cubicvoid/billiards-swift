@@ -273,7 +273,7 @@ extension TurnCycle: Equatable {
 	}
 }
 
-/*extension TurnCycle: Comparable {
+extension TurnCycle: Comparable {
 	public func compareTo(_ cycle: TurnCycle) -> Comparison {
 		let lengthComparison = Compare(self.length, to: cycle.length)
 		if lengthComparison != .equal {
@@ -285,9 +285,22 @@ extension TurnCycle: Equatable {
 			return weightComparison
 		}
 
+		let segmentCountComparison =
+			Compare(self.segments.count, to: cycle.segments.count)
+		if segmentCountComparison != .equal {
+			return segmentCountComparison
+		}
+
+		for i in 0..<segments.count {
+			let segmentComparison = segments[i].compareTo(cycle.segments[i])
+			if segmentComparison != .equal {
+				return segmentComparison
+			}
+		}
+		return .equal
 	}
 
-	public static func <(cycle0: TurnCycle, cycle1: TurnCycle) {
-		
+	public static func <(cycle0: TurnCycle, cycle1: TurnCycle) -> Bool {
+		return cycle0.compareTo(cycle1) == .less
 	}
-}*/
+}

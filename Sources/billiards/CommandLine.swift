@@ -223,10 +223,17 @@ class PointSetCommands {
 			name: toName)
 
 		let fromRadii = fromSet.elements.map(biradialFromApex)
-			 //polarFromCartesian($0.asDoubleVec()) }
+		let fromPolar = fromSet.elements.map {
+			 polarFromCartesian($0.asDoubleVec()) }
 		let toRadii = toSet.elements.map(biradialFromApex)
-			//polarFromCartesian($0.asDoubleVec()) }
-		func distance(fromIndex: Int, toIndex: Int) -> Double {
+		let toPolar = toSet.elements.map {
+			polarFromCartesian($0.asDoubleVec()) }
+		func pDistance(fromIndex: Int, toIndex: Int) -> Double {
+			let d0 = toPolar[toIndex][.S0] - fromPolar[fromIndex][.S0]
+			let d1 = toPolar[toIndex][.S1] - fromPolar[fromIndex][.S1]
+			return d0 * d0 + d1 * d1
+		}
+		func rDistance(fromIndex: Int, toIndex: Int) -> Double {
 			let rFrom = fromRadii[fromIndex]
 			let rTo = toRadii[toIndex]
 			let dr0 = rTo[.S0].asDouble() - rFrom[.S0].asDouble()
@@ -255,20 +262,20 @@ class PointSetCommands {
 				let ctx = ApexData(apex: targetApex)
 
 				let candidates = Array(fromSet.elements.indices).sorted {
-					distance(fromIndex: $0, toIndex: targetIndex) <
-					distance(fromIndex: $1, toIndex: targetIndex)
+					pDistance(fromIndex: $0, toIndex: targetIndex) <
+					pDistance(fromIndex: $1, toIndex: targetIndex)
 				}.prefix(neighborCount).compactMap
 				{ (index: Int) -> TurnCycle? in
 					if let cycle = fromCycles[index] {
 						if let knownCycle = toCycles[targetIndex] {
-							if knownCycle.length <= cycle.length {
+							if knownCycle <= cycle {
 								return nil
 							}
 						}
 						return cycle
 					}
 					return nil
-				}.sorted { $0.length < $1.length }
+				}.sorted { $0 < $1 }
 
 				var foundCycle: TurnCycle? = nil
 				var checked: Set<TurnCycle> = []
@@ -422,9 +429,9 @@ class PointSetCommands {
 					var caption = ""
 					if let newCycle = searchResult.shortestCycle {
 						if let oldCycle = knownCycles[index] {
-							if newCycle.length < oldCycle.length {
+							if newCycle < oldCycle {
 								knownCycles[index] = newCycle
-								caption = Magenta("found shorter cycle ") +
+								caption = Magenta("found smaller cycle ") +
 									"[\(oldCycle.length) -> \(newCycle.length)]"
 								updatedCount += 1
 							} else {
@@ -944,8 +951,8 @@ extension Vec2 where R: Numeric {
 	}
 }
 
-func polarFromCartesian(_ coords: Vec2<Double>) -> Vec2<Double> {
-	return Vec2(
+func polarFromCartesian(_ coords: Vec2<Double>) -> Singularities<Double> {
+	return Singularities(
 		Double.pi / (2.0 * atan2(coords.y, coords.x)),
 		Double.pi / (2.0 * atan2(coords.y, 1.0 - coords.x)))
 }

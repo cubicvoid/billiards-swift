@@ -37,7 +37,7 @@ public func TrajectorySearchForApexCoords(
 
 	func addCycleForPath(_ path: TurnPath) {
 		let cycle = try! TurnCycle(repeatingPath: path)
-		if shortestCycle == nil || cycle.length < shortestCycle!.length {
+		if shortestCycle == nil || cycle < shortestCycle! {
 			shortestCycle = cycle
 			if !options.allowMultipleResults {
 				// We want to keep the shortest cycle,
