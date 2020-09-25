@@ -1,5 +1,17 @@
 import Foundation
 
+public enum Side: Negatable {
+	case left
+	case right
+
+	public static prefix func -(s: Side) -> Side {
+		switch s {
+			case .left: return .right
+			case .right: return .left
+		}
+	}
+}
+
 class QueueNode<T> {
   let value: T
   var next: QueueNode<T>?

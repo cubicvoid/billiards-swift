@@ -147,6 +147,33 @@ class PointSetCommands {
 		}
 	}
 
+	func cmd_cycleFilter(_ args: [String]) {
+		/*let params = ScanParams(args)
+		guard let name: String = params["name"]
+		else {
+			fputs("pointset cycleFilter: expected name\n", stderr)
+			return
+		}
+		guard let index: Int = params["index"]
+		else {
+			fputs("pointset cycleFilter: expected index\n", stderr)
+			return
+		}
+		let pointSet = try! dataManager.loadPointSet(name: name)
+		let knownCycles: [Int: TurnCycle] =
+			(try? dataManager.loadPath(["pointset", name, "cycles"])) ?? [:]
+		guard let cycle = knownCycles[index]
+		else {
+			fputs("point \(index) has no known cycle", stderr)
+			return
+		}
+
+		//SimpleCycleFeasibilityForTurnPath
+		for coords in pointSet.elements {
+
+		}*/
+	}
+
 	func cmd_info(_ args: [String]) {
 		let params = ScanParams(args)
 		guard let name: String = params["name"]
@@ -408,24 +435,250 @@ class PointSetCommands {
 	}
 
 	func cmd_phaseplot(_ args: [String]) {
-		let params = ScanParams(args)
+		/*let params = ScanParams(args)
 		guard let name: String = params["name"]
 		else {
-			print("pointset phaseplot: expected name\n")
+			fputs("pointset phaseplot: expected name\n", stderr)
 			return
-		}
+		}*/
 		//guard let 
 	}
 
-
-	func cmd_plot(_ args: [String]) {
+	func cmd_plotConstraint(_ args: [String]) {
 		let params = ScanParams(args)
 		guard let name: String = params["name"]
 		else {
-			print("pointset plot: expected name\n")
+			fputs("pointset plotConstraint: expected name\n", stderr)
 			return
 		}
-		let pointSet = try! dataManager.loadPointSet(name: name)
+		guard let index: Int = params["index"]
+		else {
+			fputs("pointset plotConstraint: expected index\n", stderr)
+			return
+		}
+		//let pointSet = try! dataManager.loadPointSet(name: name)
+		let knownCycles = dataManager.knownCyclesForPointSet(name: name)
+		guard let cycle = knownCycles[index]
+		else {
+			fputs("no cycle known for index \(index)\n", stderr)
+			return
+		}
+		guard let constraint: ConstraintSpec = params["constraint"]
+		else {
+			fputs("pointset plotConstraint: expected constraint\n", stderr)
+			return
+		}
+		let path = FileManager.default.currentDirectoryPath
+		let paletteURL = URL(fileURLWithPath: path)
+			.appendingPathComponent("media")
+			.appendingPathComponent("gradient3.png")
+		guard let palette = PaletteFromImageFile(paletteURL)
+		else {
+			fputs("can't load palette\n", stderr)
+			return
+		}
+
+		let width = 2000
+		let height = 1000
+		//let pCenter = Vec2()
+		let center = Vec2(0.5, 0.25)
+		let scale = 1.0 / 1000.0 //0.00045//1.0 / 2200.0
+		let image = ImageData(width: width, height: height)
+
+		func colorForCoords(_ z: Vec2<Double>) -> RGB {
+			// angle scaled to +-1
+			var angle = atan2(z.y, z.x) / Double.pi
+			if angle < 0 {
+				let positiveAngle = angle + 1.0
+				let paletteIndex = Int(positiveAngle * Double(palette.count))
+				let rawColor = palette[paletteIndex]
+				return RGB(
+					r: rawColor.r / 2.0,
+					g: rawColor.g / 2.0,
+					b: rawColor.b / 2.0)
+			}
+			let paletteIndex = Int(angle * Double(palette.count - 1))
+			return palette[paletteIndex]
+		}
+
+		func offsetForTurnPath(
+			_ turnPath: TurnPath,
+			constraint: ConstraintSpec,
+			apex: Vec2<Double>
+		) -> Vec2<Double> {
+			let baseAngles = Singularities(
+				atan2(apex.y, apex.x) * 2.0,
+				atan2(apex.y, 1.0 - apex.x) * 2.0)
+			var leftTotal = Vec2(0.0, 0.0)
+			var rightTotal = Vec2(0.0, 0.0)
+
+			var curAngle = 0.0
+			var curOrientation = turnPath.initialOrientation
+			for (index, turn) in turnPath.turns.enumerated() {
+				let delta = Vec2(cos(curAngle), sin(curAngle))
+				let summand = (curOrientation == .forward)
+					? delta
+					: -delta
+				var side: Side
+				if constraint.left.index < constraint.right.index {
+					if index <= constraint.left.index ||
+						index > constraint.right.index
+					{
+						side = .left
+					} else {
+						side = .right
+					}
+				} else if index <= constraint.left.index &&
+					index > constraint.right.index
+				{
+					side = .left
+				} else {
+					side = .right
+				}
+
+				switch side {
+					case .left: leftTotal = leftTotal + summand
+					case .right: rightTotal = rightTotal + summand
+				}
+				
+				curAngle += baseAngles[curOrientation.to] * Double(turn)
+				curOrientation = -curOrientation
+			}
+			return Vec2(
+				x: leftTotal.x * rightTotal.x + leftTotal.y * rightTotal.y,
+				y: -leftTotal.x * rightTotal.y + leftTotal.y * rightTotal.x)
+		}
+
+		let turnPath = cycle.turnPath()
+		for py in 0..<height {
+			let y = center.y + Double(height/2 - py) * scale
+			for px in 0..<width {
+				let x = center.x + Double(px - width/2) * scale
+				let z = offsetForTurnPath(turnPath, constraint: constraint, apex: Vec2(x, y))
+				let color = colorForCoords(z)
+				image.setPixel(row: py, column: px, color: color)
+			}
+		}
+
+		let imageURL = URL(fileURLWithPath: path)
+			.appendingPathComponent("constraint-plot.png")
+		image.savePngToUrl(imageURL)
+
+		print("pretending to plot constraint: \(constraint)")
+		print("from cycle \(cycle)")
+	}
+
+	func cmd_plotOffset(_ args: [String]) {
+		let params = ScanParams(args)
+		guard let name: String = params["name"]
+		else {
+			fputs("pointset plotOffset: expected name\n", stderr)
+			return
+		}
+		guard let index: Int = params["index"]
+		else {
+			fputs("pointset plotOffset: expected index\n", stderr)
+			return
+		}
+		//let pointSet = try! dataManager.loadPointSet(name: name)
+		let knownCycles = dataManager.knownCyclesForPointSet(name: name)
+		guard let cycle = knownCycles[index]
+		else {
+			fputs("no cycle known for index \(index)\n", stderr)
+			return
+		}
+		let path = FileManager.default.currentDirectoryPath
+		let paletteURL = URL(fileURLWithPath: path)
+			.appendingPathComponent("media")
+			.appendingPathComponent("gradient3.png")
+		guard let palette = PaletteFromImageFile(paletteURL)
+		else {
+			fputs("can't load palette\n", stderr)
+			return
+		}
+
+		let width = 2000
+		let height = 1000
+		//let pCenter = Vec2()
+		let center = Vec2(0.5, 0.25)
+		let scale = 1.0 / 1000.0 //0.00045//1.0 / 2200.0
+		let image = ImageData(width: width, height: height)
+
+		/*func colorForCoords(_ z: Vec2<Double>) -> RGB {
+			// angle scaled to +-1
+			var angle = atan2(-z.x, z.y) / Double.pi//atan2(z.y, z.x) / Double.pi
+			if angle < 0 {
+				let positiveAngle = angle + 1.0
+				let paletteIndex = Int(positiveAngle * Double(palette.count))
+				let rawColor = palette[paletteIndex]
+				return RGB(
+					r: rawColor.r / 2.0,
+					g: rawColor.g / 2.0,
+					b: rawColor.b / 2.0)
+			}
+			let paletteIndex = Int(angle * Double(palette.count - 1))
+			return palette[paletteIndex]
+		}*/
+		func colorForCoords(_ z: Vec2<Double>) -> RGB {
+			var angle = 0.5 + 0.5 * atan2(-z.x, z.y) / Double.pi//atan2(z.y, z.x) / Double.pi
+			let paletteIndex = Int(angle * Double(palette.count - 1))
+			return palette[paletteIndex]
+		}
+
+		func offsetForTurnPath(
+			_ turnPath: TurnPath, withApex apex: Vec2<Double>
+		) -> Vec2<Double> {
+			let baseAngles = Singularities(
+				atan2(apex.y, apex.x) * 2.0,
+				atan2(apex.y, 1.0 - apex.x) * 2.0)
+			var x = 0.0
+			var y = 0.0
+			var curAngle = 0.0
+			var curOrientation = turnPath.initialOrientation
+			for turn in turnPath.turns {
+				let dx = cos(curAngle)
+				let dy = sin(curAngle)
+				switch curOrientation {
+					case .forward:
+						x += dx
+						y += dy
+					case .backward:
+						x -= dx
+						y -= dy
+				}
+
+				curAngle += baseAngles[curOrientation.to] * Double(turn)
+				curOrientation = -curOrientation
+			}
+			return Vec2(x, y)
+		}
+
+		print("Plotting cycle: \(cycle)")
+
+		let turnPath = cycle.turnPath()
+		for py in 0..<height {
+			let y = center.y + Double(height/2 - py) * scale
+			for px in 0..<width {
+				let x = center.x + Double(px - width/2) * scale
+				let z = offsetForTurnPath(turnPath, withApex: Vec2(x, y))
+				let color = colorForCoords(z)
+				image.setPixel(row: py, column: px, color: color)
+			}
+		}
+
+		let imageURL = URL(fileURLWithPath: path)
+			.appendingPathComponent("offset-plot.png")
+		image.savePngToUrl(imageURL)
+	}
+
+	func cmd_plot(_ args: [String]) {
+		/*let params = ScanParams(args)
+		guard let name: String = params["name"]
+		else {
+			fputs("pointset plot: expected name\n", stderr)
+			return
+		}
+		//let pointSet = try! dataManager.loadPointSet(name: name)
 
 		//let outputURL = URL(fileURLWithPath: "plot.png")
 		let width = 2000
@@ -433,12 +686,12 @@ class PointSetCommands {
 		let scale = Double(width) * 0.9
 		let imageCenter = Vec2(Double(width) / 2, Double(height) / 2)
 		let modelCenter = Vec2(0.5, 0.25)
-		let pointRadius = CGFloat(4)
+		//let pointRadius = CGFloat(4)
 
 		func toImageCoords(_ v: Vec2<Double>) -> Vec2<Double> {
 			return (v - modelCenter) * scale + imageCenter
 		}
-
+		*/
 		//let filter = PathFilter(path: [-2, 2, 2, -2])
 		//let feasibility = PathFeasibility(path: [-2, 2, 2, -2])
 		//let path = [-2, 2, 2, -2]
@@ -594,6 +847,8 @@ class PointSetCommands {
 				shouldCancel: shouldCancel)
 		case "create":
 			cmd_create(Array(args[1...]))
+		case "cycleFilter":
+			cmd_cycleFilter(Array(args[1...]))
 		case "delete":
 			cmd_delete(Array(args[1...]))
 		case "info":
@@ -602,6 +857,10 @@ class PointSetCommands {
 			cmd_list()
 		case "plot":
 			cmd_plot(Array(args[1...]))
+		case "plotOffset":
+			cmd_plotOffset(Array(args[1...]))
+		case "plotConstraint":
+			cmd_plotConstraint(Array(args[1...]))
 		case "print":
 			cmd_print(Array(args[1...]))
 		case "probe":
@@ -653,6 +912,55 @@ func polarFromCartesian(_ coords: Vec2<Double>) -> Vec2<Double> {
 
 /*func cartesianFromPolar(_ coords: Vec2<Double>) -> Vec2<Double> {
 }*/
+
+struct ConstraintSpec: LosslessStringConvertible {
+	let left: Boundary
+	let right: Boundary
+
+	enum BoundaryType: String {
+		case base
+		case apex
+	}
+	struct Boundary: LosslessStringConvertible {
+		let index: Int
+		let type: BoundaryType
+		init?(_ str: String) {
+			let entries = str.split(separator: ",")
+			if entries.count != 2 {
+				return nil
+			}
+			guard let index = Int(entries[0])
+			else { return nil }
+			guard let type = BoundaryType(
+				rawValue: String(entries[1]))
+			else { return nil }
+			self.index = index
+			self.type = type
+		}
+
+		public var description: String {
+			return "\(index),\(type)"
+		}
+	}
+
+	public init?(_ str: String) {
+		let boundaries = str.split(separator: "-")
+		if boundaries.count != 2 {
+			return nil
+		}
+		guard let left = Boundary(String(boundaries[0]))
+		else { return nil }
+		guard let right = Boundary(String(boundaries[1]))
+		else { return nil }
+		self.left = left
+		self.right = right
+	}
+
+	public var description: String {
+		return "\(left)-\(right)"
+	}
+
+}
 
 extension PointSet {
 	func printPointIndex(

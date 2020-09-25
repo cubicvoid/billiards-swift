@@ -187,14 +187,18 @@ fileprivate func _SeparatorForOrientation(
 
 extension TurnCycle: CustomStringConvertible {
 	public var description: String {
+		let initialOrientation = segments.first!.initialOrientation
 		var strs: [String] = []
+		let from = initialOrientation.from
+		strs.append(_ColorString("\(from)", forSingularity: from))
 		for (i, segment) in segments.enumerated() {
 			let signStr = (i % 2 == 1) ? "-" : ""
 			strs.append(_SeparatorForOrientation(segment.initialOrientation))
 			strs.append(_SubstringForTurnPath(segment, signStr: signStr))
 		}
-		strs.append(_SeparatorForOrientation(
-			segments.first!.initialOrientation))
+		strs.append(_SeparatorForOrientation(initialOrientation))
+		let to = initialOrientation.to
+		strs.append(_ColorString("\(to)", forSingularity: to))
 		return strs.joined()
 	}
 }
