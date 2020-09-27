@@ -285,7 +285,7 @@ class PointSetCommands {
 					checked.insert(cycle)
 
 					let result = SimpleCycleFeasibilityForTurnPath(
-						cycle.turnPath(), context: ctx)
+						cycle.asTurnPath(), context: ctx)
 					if result?.feasible == true {
 						foundCycle = cycle
 						break
@@ -350,7 +350,8 @@ class PointSetCommands {
 			return
 		}
 		let ctx = ApexData(apex: point)
-		let result = SimpleCycleFeasibilityForTurnPath(cycle.turnPath(), context: ctx)
+		let result = SimpleCycleFeasibilityForTurnPath(
+			cycle.asTurnPath(), context: ctx)
 		if result?.feasible == true {
 			print("Passed!")
 		} else {
@@ -594,7 +595,7 @@ class PointSetCommands {
 				y: -leftTotal.x * rightTotal.y + leftTotal.y * rightTotal.x)
 		}
 
-		let turnPath = cycle.turnPath()
+		let turnPath = cycle.asTurnPath()
 		for py in 0..<height {
 			let y = center.y + Double(height/2 - py) * scale
 			for px in 0..<width {
@@ -700,7 +701,7 @@ class PointSetCommands {
 
 		print("Plotting cycle: \(cycle)")
 
-		let turnPath = cycle.turnPath()
+		let turnPath = cycle.asTurnPath()
 		for py in 0..<height {
 			let y = center.y + Double(height/2 - py) * scale
 			for px in 0..<width {
@@ -1068,11 +1069,33 @@ extension PointSet {
 			Double(aggregate.totalWeight) / Double(knownCycles.count))
 		let averageSegments = String(format: "%.2f",
 			Double(aggregate.totalSegments) / Double(knownCycles.count))
+
+
+		var oddBuckets = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+		var overflow = 0
+		for (cycle, stats) in statsTable {
+			var oddCount = 0
+			for segment in cycle.segments {
+				if segment.turnDegrees.count % 2 != 0 {
+					oddCount += 1
+				}
+			}
+			if oddCount/2 < oddBuckets.count {
+				oddBuckets[oddCount/2] += 1
+			} else {
+				overflow += 1
+			}
+		}
+		let oddBucketStr =
+			oddBuckets.enumerated().map { "\($0*2):\($1)" }.joined(separator: " ")
+		
+
 		print("pointset: \(name)")
 		print("  known cycles: \(knownCycles.keys.count) / \(self.elements.count)")
 		print("  distinct cycles: \(statsTable.count)")
 		print("  length: average \(averageLength), maximum \(aggregate.maxLength)")
 		print("  weight: average \(averageWeight), maximum \(aggregate.maxWeight)")
 		print("  segments: average \(averageSegments), maximum \(aggregate.maxSegments)")
+		print("  odd segment count: \(oddBucketStr) more:\(overflow)")
 	}
 }
