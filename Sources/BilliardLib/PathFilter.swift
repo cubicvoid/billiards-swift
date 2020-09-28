@@ -1,7 +1,7 @@
 import Foundation
 
 public struct SimpleCycleFeasibilityResult<k: Field & Comparable & Numeric> {
-	public let apex: ApexData<k>
+	public let apex: BilliardsContext<k>
 	public let turnPath: TurnPath
 	public let margin: k
 
@@ -42,7 +42,7 @@ public struct SimpleCycleFeasibilityResult<k: Field & Comparable & Numeric> {
 // whether the upper and lower boundaries have a positive separation.
 public func SimpleCycleFeasibilityForTurnPath<k: Field & Comparable & Numeric>(
 	_ turnPath: TurnPath,
-	context: ApexData<k>
+	context: BilliardsContext<k>
 ) -> SimpleCycleFeasibilityResult<k>? {
 	if turnPath.turns.count % 2 != 0 {
 		return nil
@@ -101,7 +101,7 @@ public func SimpleCycleFeasibilityForTurnPath<k: Field & Comparable & Numeric>(
 
 public func Thingie<k: Field & Comparable & Numeric>(
 	_ turnPath: TurnPath,
-	context: ApexData<k>
+	context: BilliardsContext<k>
 ) -> SimpleCycleFeasibilityResult<k>? {
 	if turnPath.turns.count % 2 != 0 {
 		return nil

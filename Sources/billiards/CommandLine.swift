@@ -259,7 +259,7 @@ class PointSetCommands {
 			copyQueue.async {
 				defer { copyGroup.leave() }
 				if shouldCancel?() == true { return }
-				let ctx = ApexData(apex: targetApex)
+				let ctx = BilliardsContext(apex: targetApex)
 
 				let candidates = Array(fromSet.elements.indices).sorted {
 					pDistance(fromIndex: $0, toIndex: targetIndex) <
@@ -349,7 +349,7 @@ class PointSetCommands {
 			fputs("\(name)[\(index)] has no known cycle", stderr)
 			return
 		}
-		let ctx = ApexData(apex: point)
+		let ctx = BilliardsContext(apex: point)
 		let result = SimpleCycleFeasibilityForTurnPath(
 			cycle.asTurnPath(), context: ctx)
 		if result?.feasible == true {

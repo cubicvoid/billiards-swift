@@ -32,8 +32,8 @@ public func TrajectorySearchForApexCoords(
 	var shortestCycle: TurnCycle? = nil
 	let apexCoordsApprox = apexCoords.asDoubleVec()
 	//print("search(apex = \(apexCoordsApprox))")
-	let context = ApexData(apex: apexCoords)
-	let apexApprox = ApexData(apex: apexCoordsApprox)
+	let context = BilliardsContext(apex: apexCoords)
+	let apexApprox = BilliardsContext(apex: apexCoordsApprox)
 
 	func addCycleForPath(_ path: TurnPath) {
 		let cycle = try! TurnCycle(repeatingPath: path)
@@ -108,7 +108,7 @@ public struct TrajectorySearchOptions {
 
 func SearchTrajectory<k: Field & Comparable & Numeric>(
 	_ trajectory: Vec3<k>,
-	withApex context: ApexData<k>,
+	withApex context: BilliardsContext<k>,
 	forSteps stepCount: Int
 ) -> TurnPath? {
 	let startingCoords = S2(

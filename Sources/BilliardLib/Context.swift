@@ -1,4 +1,4 @@
-public class ApexData<k: Field & Comparable> {
+public class BilliardsContext<k: Field & Comparable> {
 	// coords is the main input parameter. It is specified relative to the base
 	// edge from (0,0) to (1,0), and thus for our purposes is usually in the range
 	// 0 < x < 1 and 0 < y < 1/2, though values outside that range are still valid

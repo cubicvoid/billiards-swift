@@ -13,7 +13,7 @@ class DiscPathEdgeTests: XCTestCase {
   
   func testApexCoordsForSide() {
     let apexCoords = Vec2(x: k(1, over: 2), y: k(1, over: 2))
-    let apex = ApexData(apex: apexCoords)
+    let apex = BilliardsContext(apex: apexCoords)
     let base = S2(Vec2.origin, Vec2(x: k.one, y: k.zero))
     let edge0 = DiscPathEdge(
       context: apex, coords: base,
@@ -51,7 +51,7 @@ class DiscPathEdgeTests: XCTestCase {
 
   func testNextTurnForTrajectory() {
     let apexCoords = Vec2(x: k(1, over: 2), y: k(1, over: 2))
-    let apex = ApexData(apex: apexCoords)
+    let apex = BilliardsContext(apex: apexCoords)
     let base = S2(Vec2.origin, Vec2(x: k.one, y: k.zero))
     let edge0 = DiscPathEdge(
       context: apex, coords: base,

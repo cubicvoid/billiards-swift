@@ -5,10 +5,10 @@ public class DiscPathEdge<k: Field & Comparable> {
 	public var orientation: Singularity.Orientation
 	public var rotationCounts: S2<Int>
 	
-	let ctx: ApexData<k>
+	let ctx: BilliardsContext<k>
 	
 	public init(
-		context: ApexData<k>,
+		context: BilliardsContext<k>,
 		coords: S2<Vec2<k>>,
 		orientation: Singularity.Orientation,
 		rotationCounts: S2<Int>
@@ -20,7 +20,7 @@ public class DiscPathEdge<k: Field & Comparable> {
 	}
 	
 	public convenience init(
-		context: ApexData<k>,
+		context: BilliardsContext<k>,
 		coords: S2<Vec2<k>>,
 		orientation: Singularity.Orientation = .forward
 	) {
