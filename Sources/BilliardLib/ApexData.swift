@@ -4,12 +4,12 @@ public class ApexData<k: Field & Comparable> {
 	// 0 < x < 1 and 0 < y < 1/2, though values outside that range are still valid
 	// whenever they make sense.
 	public let coords: Vec2<k>
-	public let r: Singularities<k>
+	public let r: S2<k>
 
-	public let rotation: Singularities<UnitPowerCache<k>>
+	public let rotation: S2<UnitPowerCache<k>>
 	
 
-	public init(radii: Singularities<k>) {
+	public init(radii: S2<k>) {
 		self.r = radii
 		self.coords = Vec2(
 			x: r[.S0] / (r[.S0] + r[.S1]),
@@ -20,10 +20,7 @@ public class ApexData<k: Field & Comparable> {
 	}
 
 	public convenience init(apex: Vec2<k>) {
-		let r = Singularities(apex.x / apex.y, (k.one - apex.x) / apex.y)
-		let newCoords = Vec2(
-			x: r[.S0] / (r[.S0] + r[.S1]),
-			y: k.one / (r[.S0] + r[.S1]))
+		let r = S2(apex.x / apex.y, (k.one - apex.x) / apex.y)
 		self.init(radii: r)
 	}
 }

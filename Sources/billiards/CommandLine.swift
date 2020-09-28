@@ -552,7 +552,7 @@ class PointSetCommands {
 			constraint: ConstraintSpec,
 			apex: Vec2<Double>
 		) -> Vec2<Double> {
-			let baseAngles = Singularities(
+			let baseAngles = S2(
 				atan2(apex.y, apex.x) * 2.0,
 				atan2(apex.y, 1.0 - apex.x) * 2.0)
 			var leftTotal = Vec2(0.0, 0.0)
@@ -674,7 +674,7 @@ class PointSetCommands {
 		func offsetForTurnPath(
 			_ turnPath: TurnPath, withApex apex: Vec2<Double>
 		) -> Vec2<Double> {
-			let baseAngles = Singularities(
+			let baseAngles = S2(
 				atan2(apex.y, apex.x) * 2.0,
 				atan2(apex.y, 1.0 - apex.x) * 2.0)
 			var x = 0.0
@@ -940,26 +940,28 @@ struct AggregateStats {
 	var maxLength: Int = 0
 	var maxWeight: Int = 0
 	var maxSegments: Int = 0
+	
+	var symmetricCount: Int = 0
 }
 
 extension Vec2 where R: Numeric {
-	func asBiphase() -> Singularities<Double> {
+	func asBiphase() -> S2<Double> {
 		let xApprox = x.asDouble()
 		let yApprox = y.asDouble()
-		return Singularities(
+		return S2(
 			s0: Double.pi / (2.0 * atan2(yApprox, xApprox)),
 			s1: Double.pi / (2.0 * atan2(yApprox, 1.0 - xApprox)))
 	}
 }
 
-func polarFromCartesian(_ coords: Vec2<Double>) -> Singularities<Double> {
-	return Singularities(
+func polarFromCartesian(_ coords: Vec2<Double>) -> S2<Double> {
+	return S2(
 		Double.pi / (2.0 * atan2(coords.y, coords.x)),
 		Double.pi / (2.0 * atan2(coords.y, 1.0 - coords.x)))
 }
 
-func biradialFromApex<k: Field>(_ coords: Vec2<k>) -> Singularities<k> {
-	return Singularities(coords.x / coords.y, (k.one - coords.x) / coords.y)
+func biradialFromApex<k: Field>(_ coords: Vec2<k>) -> S2<k> {
+	return S2(coords.x / coords.y, (k.one - coords.x) / coords.y)
 }
 
 /*func cartesianFromPolar(_ coords: Vec2<Double>) -> Vec2<Double> {
@@ -1022,17 +1024,18 @@ extension PointSet {
 		caption: String = ""
 	) {
 		let point = self.elements[index]
-		let radii = biradialFromApex(point)
 		let pointApprox = point.asDoubleVec()
 		let approxAngles = pointApprox.asBiphase().map {
 			String(format: "%.\(precision)f", $0) }
+		let approxRadii = biradialFromApex(point).map {
+			String(format: "%.\(precision)f", $0.asDouble()) }
 		let coordsStr = String(
 			format: "(%.\(precision)f, %.\(precision)f)", pointApprox.x, pointApprox.y)
 		print(Cyan("[\(index)]"), caption)
 		print(Green("  cartesian coords"), coordsStr)
 		print(Green("  biradial coords"))
-		print(DarkGray("    S0: \(radii[.S0].asDouble())"))
-		print("    S1: \(radii[.S1].asDouble())")
+		print(DarkGray("    S0: \(approxRadii[.S0])"))
+		print("    S1: \(approxRadii[.S1])")
 		print(Green("  biphase coords"))
 		print(DarkGray("    S0: \(approxAngles[.S0])"))
 		print("    S1: \(approxAngles[.S1])")
@@ -1044,7 +1047,7 @@ extension PointSet {
 	func summarize(name: String, knownCycles: [Int: TurnCycle]) {
 		var aggregate = AggregateStats()
 		var statsTable: [TurnCycle: CycleStats] = [:]
-		for (_, cycle) in knownCycles {
+		for (i, cycle) in knownCycles {
 			aggregate.totalLength += cycle.length
 			aggregate.maxLength = max(aggregate.maxLength, cycle.length)
 
@@ -1057,6 +1060,10 @@ extension PointSet {
 			var curStats: CycleStats
 			if let entry = statsTable[cycle] {
 				curStats = entry
+				if cycle.isSymmetric() {
+					aggregate.symmetricCount += 1
+					printPointIndex(i, knownCycles: knownCycles)
+				}
 			} else {
 				curStats = CycleStats(cycle)
 				statsTable[cycle] = curStats
@@ -1073,7 +1080,7 @@ extension PointSet {
 
 		var oddBuckets = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 		var overflow = 0
-		for (cycle, stats) in statsTable {
+		for (cycle, _) in statsTable {
 			var oddCount = 0
 			for segment in cycle.segments {
 				if segment.turnDegrees.count % 2 != 0 {
@@ -1093,9 +1100,10 @@ extension PointSet {
 		print("pointset: \(name)")
 		print("  known cycles: \(knownCycles.keys.count) / \(self.elements.count)")
 		print("  distinct cycles: \(statsTable.count)")
+		print("  symmetric cycles: \(aggregate.symmetricCount)")
 		print("  length: average \(averageLength), maximum \(aggregate.maxLength)")
 		print("  weight: average \(averageWeight), maximum \(aggregate.maxWeight)")
 		print("  segments: average \(averageSegments), maximum \(aggregate.maxSegments)")
-		print("  odd segment count: \(oddBucketStr) more:\(overflow)")
+		print("  odd segment counts: \(oddBucketStr) more:\(overflow)")
 	}
 }

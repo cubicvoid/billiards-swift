@@ -111,14 +111,14 @@ func SearchTrajectory<k: Field & Comparable & Numeric>(
 	withApex context: ApexData<k>,
 	forSteps stepCount: Int
 ) -> TurnPath? {
-	let startingCoords = Singularities(
+	let startingCoords = S2(
 		s0: Vec2<k>.origin,
 		s1: Vec2(x: k.one, y: k.zero))
 	let firstEdge: DiscPathEdge<k> = DiscPathEdge(
 		context: context, coords: startingCoords)
 
 	var turns: [Int] = []
-	var angles = Singularities(s0: 0, s1: 0)
+	var angles = S2(s0: 0, s1: 0)
 
 	for step in firstEdge.stepsForTrajectory(trajectory) {
 		// the current center singularity is the one that the

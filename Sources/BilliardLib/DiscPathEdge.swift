@@ -1,17 +1,17 @@
 import Foundation
 
 public class DiscPathEdge<k: Field & Comparable> {
-	public var coords: Singularities<Vec2<k>>
+	public var coords: S2<Vec2<k>>
 	public var orientation: Singularity.Orientation
-	public var rotationCounts: Singularities<Int>
+	public var rotationCounts: S2<Int>
 	
 	let ctx: ApexData<k>
 	
 	public init(
 		context: ApexData<k>,
-		coords: Singularities<Vec2<k>>,
+		coords: S2<Vec2<k>>,
 		orientation: Singularity.Orientation,
-		rotationCounts: Singularities<Int>
+		rotationCounts: S2<Int>
 	) {
 		self.ctx = context
 		self.coords = coords
@@ -21,14 +21,14 @@ public class DiscPathEdge<k: Field & Comparable> {
 	
 	public convenience init(
 		context: ApexData<k>,
-		coords: Singularities<Vec2<k>>,
+		coords: S2<Vec2<k>>,
 		orientation: Singularity.Orientation = .forward
 	) {
 		self.init(
 			context: context,
 			coords: coords,
 			orientation: orientation,
-			rotationCounts: Singularities(0, 0))
+			rotationCounts: S2(0, 0))
 	}
 	
 	public func fromCoords() -> Vec2<k> {

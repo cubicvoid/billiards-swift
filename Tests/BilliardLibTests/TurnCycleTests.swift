@@ -4,7 +4,7 @@ import BilliardLib
 
 struct InitTestCase {
 	let turnPath: TurnPath
-	let expectedSegments: [TurnPath]
+	let expectedSegments: [TurnCycle.Segment]
 	let expectedError: TurnCycle.CycleError? = nil
 }
 
@@ -16,13 +16,13 @@ class TurnCycleTests: XCTestCase {
 					initialOrientation: .forward,
 					turns: [-6, 4, 6, -4]),
 				expectedSegments: [
-					TurnPath(
+					TurnCycle.Segment(
 						initialOrientation: .forward,
-						turns: [6, 4]
+						turnDegrees: [6, 4]
 					),
-					TurnPath(
+					TurnCycle.Segment(
 						initialOrientation: .forward,
-						turns: [6, 4]
+						turnDegrees: [6, 4]
 					),
 				]
 			)

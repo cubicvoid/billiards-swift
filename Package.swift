@@ -1,9 +1,12 @@
-// swift-tools-version:5.0
+// swift-tools-version:5.1
 
 import PackageDescription
 
 let package = Package(
 	name: "Billiards",
+	platforms: [
+		.macOS(.v10_15),
+	],
 	products: [
 		.library(
 			name: "BilliardLib",
@@ -28,7 +31,9 @@ let package = Package(
 		),
 		.target(
 			name: "BilliardLib",
-			dependencies: ["CGmp", "Clibbsd", "Logging"]
+			dependencies: ["CGmp", "Clibbsd", "Logging"],
+			linkerSettings: [
+				LinkerSetting.unsafeFlags(["-Xlinker", "-L/usr/local/lib"])]
 		),
 		.testTarget(
 			name: "BilliardLibTests",

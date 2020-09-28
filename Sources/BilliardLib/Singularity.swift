@@ -89,7 +89,7 @@ public enum Singularity: Hashable {
 	}
 }
 
-public struct Singularities<k> {
+public struct S2<k> {
 	private var v0, v1: k
 
 	public init(_ v0: k, _ v1: k) {
@@ -110,10 +110,10 @@ public struct Singularities<k> {
 	public func withValue(
 		_ value: k, 
 		forSingularity s: Singularity
-	) -> Singularities<k> {
+	) -> S2<k> {
 		switch s {
-			case .S0: return Singularities(value, self[.S1])
-			case .S1: return Singularities(self[.S0], value)
+			case .S0: return S2(value, self[.S1])
+			case .S1: return S2(self[.S0], value)
 		}
 	}
 
@@ -132,12 +132,12 @@ public struct Singularities<k> {
 		}
 	}
 	
-	public func map<T>(_ f: (k) -> T) -> Singularities<T> {
-		return Singularities<T>(f(v0), f(v1))
+	public func map<T>(_ f: (k) -> T) -> S2<T> {
+		return S2<T>(f(v0), f(v1))
 	}
 }
 
-extension Singularities: CustomStringConvertible where k: CustomStringConvertible {
+extension S2: CustomStringConvertible where k: CustomStringConvertible {
 	public var description: String {
 		return "(S0 -> \(self[.S0]), S1 -> \(self[.S1]))"
 	}

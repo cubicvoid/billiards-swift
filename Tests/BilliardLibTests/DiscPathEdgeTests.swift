@@ -14,11 +14,11 @@ class DiscPathEdgeTests: XCTestCase {
   func testApexCoordsForSide() {
     let apexCoords = Vec2(x: k(1, over: 2), y: k(1, over: 2))
     let apex = ApexData(apex: apexCoords)
-    let base = Singularities(Vec2.origin, Vec2(x: k.one, y: k.zero))
+    let base = S2(Vec2.origin, Vec2(x: k.one, y: k.zero))
     let edge0 = DiscPathEdge(
       context: apex, coords: base,
       orientation: Singularity.Orientation.to(.S1),
-      rotationCounts: Singularities(s0: 0, s1: 0))
+      rotationCounts: S2(s0: 0, s1: 0))
     XCTAssertEqual(edge0.fromCoords(), Vec2.origin)
     XCTAssertEqual(edge0.toCoords(), Vec2(x: k.one, y: k.zero))
     XCTAssertEqual(edge0.apexCoordsForSide(.left), Vec2(x: k(1, over: 2), y: k(1, over: 2)))
@@ -52,11 +52,11 @@ class DiscPathEdgeTests: XCTestCase {
   func testNextTurnForTrajectory() {
     let apexCoords = Vec2(x: k(1, over: 2), y: k(1, over: 2))
     let apex = ApexData(apex: apexCoords)
-    let base = Singularities(Vec2.origin, Vec2(x: k.one, y: k.zero))
+    let base = S2(Vec2.origin, Vec2(x: k.one, y: k.zero))
     let edge0 = DiscPathEdge(
       context: apex, coords: base,
       orientation: Singularity.Orientation.to(.S1),
-      rotationCounts: Singularities(s0: 0, s1: 0))
+      rotationCounts: S2(s0: 0, s1: 0))
     
     let t0 = Vec3(k.zero, k.one, k(-1, over: 4))
     let t1 = Vec3(k.zero, k.one, k(1, over: 4))

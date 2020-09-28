@@ -64,7 +64,7 @@ public final class TurnCycle {
 	// Returns a turn path that generates this cycle. The choice of turn path
 	// is arbitrary but deterministic for a given cycle.
 	public func asTurnPath() -> TurnPath {
-		let coeff = Singularities(s0: 1, s1: -1)
+		let coeff = S2(s0: 1, s1: -1)
 		var turns: [Int] = []
 		let initialOrientation = segments.first!.initialOrientation
 		var singularity = initialOrientation.to
@@ -85,7 +85,9 @@ public final class TurnCycle {
 		public let initialOrientation: Singularity.Orientation
 		public let turnDegrees: [Int]
 
-		init(initialOrientation: Singularity.Orientation, turnDegrees: [Int]) {
+		public init(
+			initialOrientation: Singularity.Orientation, turnDegrees: [Int]
+		) {
 			self.initialOrientation = initialOrientation
 			self.turnDegrees = turnDegrees
 		}
@@ -99,7 +101,6 @@ public final class TurnCycle {
 		}
 	}
 }
-
 
 extension TurnCycle.Segment: Codable, Hashable {
 	public convenience init(from: Decoder) throws {
@@ -140,7 +141,6 @@ extension TurnCycle: Codable, Hashable {
 		for segment in segments {
 			hasher.combine(segment)
 		}
-		//hasher.combine(segments)
 	}
 }
 
@@ -376,3 +376,41 @@ fileprivate func CanonicallyOrderSegments(
 		segments[lowestOrderedSegmentIndex...] +
 		segments[..<lowestOrderedSegmentIndex])
 }
+
+
+extension TurnCycle {
+	public func isSymmetric() -> Bool {
+		let path = self.asTurnPath()
+		let n = path.turns.count
+		// a cycle has a reflective symmetry iff its turn path representatives do.
+		centerLoop:
+		for center in 0..<n {
+			for offset in 1..<(n / 2) {
+				let left = (center - offset + n) % n
+				let right = (center + offset) % n
+				if path.turns[left] != path.turns[right] {
+					continue centerLoop
+				}
+			}
+			return true
+		}
+		return false
+	}
+}
+
+public struct RadiusBounds {
+	let min: S2<GmpRational>
+	let max: S2<GmpRational>
+}
+
+/*public func BoundsOrSomething(cycle: TurnCycle) {
+	func asBiphase() -> Singularities<Double> {
+		let xApprox = x.asDouble()
+		let yApprox = y.asDouble()
+		return Singularities(
+			s0: Double.pi / (2.0 * atan2(yApprox, xApprox)),
+			s1: Double.pi / (2.0 * atan2(yApprox, 1.0 - xApprox)))
+	}
+
+}
+*/

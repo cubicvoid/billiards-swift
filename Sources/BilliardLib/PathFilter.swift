@@ -47,7 +47,7 @@ public func SimpleCycleFeasibilityForTurnPath<k: Field & Comparable & Numeric>(
 	if turnPath.turns.count % 2 != 0 {
 		return nil
 	}
-	var totals = Singularities(0, 0)
+	var totals = S2(0, 0)
 	var o = turnPath.initialOrientation
 	for turn in turnPath.turns {
 		totals[o.to] += turn
@@ -58,7 +58,7 @@ public func SimpleCycleFeasibilityForTurnPath<k: Field & Comparable & Numeric>(
 	}
 	var edge = DiscPathEdge(
 		context: context,
-		coords: Singularities(
+		coords: S2(
 			s0: Vec2<k>.origin,
 			s1: Vec2(k.one, k.zero)),
 		orientation: turnPath.initialOrientation)
@@ -108,7 +108,7 @@ public func Thingie<k: Field & Comparable & Numeric>(
 	}
 	var edge = DiscPathEdge(
 		context: context,
-		coords: Singularities(
+		coords: S2(
 			s0: Vec2<k>.origin,
 			s1: Vec2(k.one, k.zero)),
 		orientation: turnPath.initialOrientation)
