@@ -1,3 +1,4 @@
+import Foundation
 
 public final class TurnCycle {
 	public enum CycleError: Error {
@@ -10,7 +11,7 @@ public final class TurnCycle {
 
 	public let segments: [Segment]
 	public let length: Int
-	public let weight: Int
+	//public let weight: Int
 
 	private init(segments: [Segment]) {
 		let segs = CanonicallyOrderSegments(segments)
@@ -18,8 +19,8 @@ public final class TurnCycle {
 		let segmentLengths = segs.map { $0.turnDegrees.count }
 		self.length = segmentLengths.reduce(0, +)
 
-		let segmentWeights = segs.map { $0.turnDegrees.reduce(0, +) }
-		self.weight = segmentWeights.reduce(0, +)
+		//let segmentWeights = segs.map { $0.turnDegrees.reduce(0, +) }
+		//self.weight = segmentWeights.reduce(0, +)
 
 		self.segments = segs
 	}
@@ -244,7 +245,9 @@ extension TurnCycle: Comparable {
 			return lengthComparison
 		}
 
-		let weightComparison = Compare(self.weight, to: cycle.weight)
+		let weightComparison = Compare(
+			self.asTurnPath().totalWeight(),
+			to: cycle.asTurnPath().totalWeight())
 		if weightComparison != .equal {
 			return weightComparison
 		}
@@ -398,19 +401,96 @@ extension TurnCycle {
 	}
 }
 
-public struct RadiusBounds {
-	let min: S2<GmpRational>
-	let max: S2<GmpRational>
-}
-
-/*public func BoundsOrSomething(cycle: TurnCycle) {
-	func asBiphase() -> Singularities<Double> {
-		let xApprox = x.asDouble()
-		let yApprox = y.asDouble()
-		return Singularities(
-			s0: Double.pi / (2.0 * atan2(yApprox, xApprox)),
-			s1: Double.pi / (2.0 * atan2(yApprox, 1.0 - xApprox)))
+extension TurnPath {
+	public func maxDegrees() -> S2<Int> {
+		var result = S2(0, 0)
+		for step in self {
+			let degree = abs(step.turn)
+			result[step.singularity] = Swift.max(result[step.singularity], degree)
+		}
+		return result
 	}
-
 }
-*/
+
+// The combinatorial data for a single flip within a turn cycle.
+public struct TurnFlip {
+	public let orientation: Singularity.Orientation
+	public let degrees: S2<Int>
+}
+
+public struct FlipIterator: Sequence, IteratorProtocol {
+	private let cycle: TurnCycle
+	private var segmentIndex: Int = 0
+	private var prevSegment: TurnCycle.Segment
+	
+	init(_ cycle: TurnCycle) {
+		self.cycle = cycle
+		self.prevSegment = cycle.segments.last!
+	}
+	
+	public mutating func next() -> TurnFlip? {
+		if segmentIndex >= cycle.segments.count {
+			return nil
+		}
+		let segment = cycle.segments[segmentIndex]
+		let prevDegree = prevSegment.turnDegrees.last!
+		let curDegree = segment.turnDegrees.first!
+		let orientation = segment.initialOrientation
+		let degrees = (orientation == .forward)
+			? S2(prevDegree, curDegree)
+			: S2(curDegree, prevDegree)
+		prevSegment = segment
+		segmentIndex += 1
+		return TurnFlip(orientation: orientation, degrees: degrees)
+	}
+}
+
+extension TurnCycle {
+	public func flips() -> FlipIterator {
+		return FlipIterator(self)
+	}
+}
+
+public struct RadiusBounds {
+	public let min: S2<Double>
+	public let max: S2<Double>
+}
+
+
+// infers somewhat reasonable bounds on the possible range of
+// input radii for which the given cycle could be feasible.
+// Any feasible apex is guaranteed to be within the returned
+// bounds.
+public func BoundsOrSomething(cycle: TurnCycle) -> RadiusBounds {
+	let maxDegrees = cycle.asTurnPath().maxDegrees()
+	let maxAngles = maxDegrees.map { Double.pi / Double(2 * ($0 - 1)) }
+	let minRadii = maxAngles.map { 1.0 / tan($0) }
+	
+	// the angle range occluded by the apex in a flip is
+	//   Pi - 2(theta0 + theta1)
+	// in particular it is the same in both circles.
+	// (for details see logs, electronic and paper, in the
+	// vicinity of 2020/10/04)
+	//let minOccluded = Double.pi - 2 * (maxAngles[.S0] + maxAngles[.S1])
+
+	// start from the worst case: the maximum possible turn degree
+	//var minAngles = maxDegrees.map { minOccluded / Double($0) }
+	var minAngles = S2(0.0, 0.0)
+	for flip in cycle.flips() {
+		for o in Singularity.Orientation.all {
+			let s = o.from
+			let t = o.to
+			//minAngles[s] =
+			//print("turn degree \(flip.degrees[s])")
+			let bound =
+				(Double.pi / 2 - maxAngles[t]) / Double(flip.degrees[s] + 1)
+			if bound > minAngles[s] {
+				minAngles[s] = bound
+			}
+		}
+	}
+	let maxRadii = minAngles.map { 1.0 / tan($0) }
+	
+	return RadiusBounds(min: minRadii, max: maxRadii)
+}
+

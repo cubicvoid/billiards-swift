@@ -18,6 +18,8 @@ public enum Singularity: Hashable {
 	public enum Orientation: Int, Codable, Negatable, Hashable {
 		case forward
 		case backward
+		
+		public static let all: [Orientation] = [.forward, .backward]
 
 		static public prefix func -(orientation: Orientation) -> Orientation {
 			switch orientation {

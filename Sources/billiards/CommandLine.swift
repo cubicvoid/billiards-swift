@@ -199,9 +199,9 @@ class PointSetCommands {
 	}
 
 	func cmd_copyCycles(
-		_ args: [String],
-		shouldCancel: (() -> Bool)?
+		_ args: [String]
 	) {
+		let shouldCancel = self.captureSigint()
 		let params = ScanParams(args)
 		guard let fromName: String = params["from"]
 		else {
@@ -253,12 +253,12 @@ class PointSetCommands {
 		var unchangedCount = 0
 		for targetIndex in toSet.elements.indices {
 			let targetApex = toSet.elements[targetIndex]
-			if shouldCancel?() == true { break }
+			if shouldCancel() { break }
 
 			copyGroup.enter()
 			copyQueue.async {
 				defer { copyGroup.leave() }
-				if shouldCancel?() == true { return }
+				if shouldCancel() { return }
 				let ctx = BilliardsContext(apex: targetApex)
 
 				let candidates = Array(fromSet.elements.indices).sorted {
@@ -280,7 +280,7 @@ class PointSetCommands {
 				var foundCycle: TurnCycle? = nil
 				var checked: Set<TurnCycle> = []
 				for cycle in candidates {
-					if shouldCancel?() == true { return }
+					if shouldCancel() { return }
 					if checked.contains(cycle) { continue }
 					checked.insert(cycle)
 
@@ -360,9 +360,9 @@ class PointSetCommands {
 	}
 
 	func cmd_search(
-		_ args: [String],
-		shouldCancel: (() -> Bool)?
+		_ args: [String]
 	) {
+		let cancel = self.captureSigint()
 		var searchOptions = TrajectorySearchOptions()
 
 		let params = ScanParams(args)
@@ -385,6 +385,7 @@ class PointSetCommands {
 		}
 		let pointSet = try! dataManager.loadPointSet(name: name)
 		var knownCycles = dataManager.knownCyclesForPointSet(name: name)
+		let targetIndex: Int? = params["index"]
 		
 		let searchQueue = DispatchQueue(
 			label: "me.faec.billiards.searchQueue",
@@ -397,7 +398,10 @@ class PointSetCommands {
 		var foundCount = 0
 		var updatedCount = 0
 		for (index, point) in pointSet.elements.enumerated() {
-			if shouldCancel?() == true { break }
+			if cancel() { break }
+			if targetIndex != nil && targetIndex != index {
+				continue
+			}
 
 			searchGroup.enter()
 			searchQueue.async {
@@ -415,14 +419,14 @@ class PointSetCommands {
 						options.maxPathLength = min(
 							options.maxPathLength, cycle.length - 1)
 					}
-					if shouldCancel?() != true {
+					if cancel() {
 						activeSearches[index] = true
 					}
 				}
-				if skip || shouldCancel?() == true { return }
+				if skip || cancel() { return }
 
 				let searchResult = TrajectorySearchForApexCoords(
-					point, options: options, cancel: shouldCancel)
+					point, options: options, cancel: cancel)
 				resultsQueue.sync(flags: .barrier) {
 					// search is finished
 					activeSearches.removeValue(forKey: index)
@@ -861,13 +865,8 @@ class PointSetCommands {
 			logger.error("Couldn't delete point set '\(name)': \(error)")
 		}
 	}
-
-	func run(_ args: [String]) {
-		guard let command = args.first
-		else {
-			fputs("pointset: expected command", stderr)
-			exit(1)
-		}
+	
+	func captureSigint() -> () -> Bool {
 		signal(SIGINT, SIG_IGN)
 		let signalQueue = DispatchQueue(label: "me.faec.billiards.signalQueue")
 		var sigintCount = 0
@@ -886,11 +885,19 @@ class PointSetCommands {
 		func shouldCancel() -> Bool {
 			return sigintCount > 0
 		}
+		return shouldCancel
+	}
+
+	func run(_ args: [String]) {
+		guard let command = args.first
+		else {
+			fputs("pointset: expected command", stderr)
+			exit(1)
+		}
 
 		switch command {
 		case "copyCycles":
-			cmd_copyCycles(Array(args[1...]),
-				shouldCancel: shouldCancel)
+			cmd_copyCycles(Array(args[1...]))
 		case "create":
 			cmd_create(Array(args[1...]))
 		case "cycleFilter":
@@ -912,8 +919,7 @@ class PointSetCommands {
 		case "probe":
 			cmd_probe(Array(args[1...]))
 		case "search":
-			cmd_search(Array(args[1...]),
-				shouldCancel: shouldCancel)
+			cmd_search(Array(args[1...]))
 		case "validate":
 			cmd_validate(Array(args[1...]))
 		default:
@@ -1023,24 +1029,57 @@ extension PointSet {
 		precision: Int = 6,
 		caption: String = ""
 	) {
+		func FloatStr<T: Numeric>(_ val: T) -> String {
+			return String(format: "%.\(precision)f", val.asDouble())
+		}
+		func S2Str<T: Numeric>(_ s: S2<T>) -> String {
+			let strs = s.map { FloatStr($0.asDouble()) }
+			
+			return "(\(DarkGray(strs[.S0])), \(strs[.S1]))"
+		}
+		func CFStr(_ cf: ContinuedFrac) -> String {
+			return cf.approximations().map {$0.description}.joined(separator: " -> ")
+		}
 		let point = self.elements[index]
 		let pointApprox = point.asDoubleVec()
-		let approxAngles = pointApprox.asBiphase().map {
-			String(format: "%.\(precision)f", $0) }
-		let approxRadii = biradialFromApex(point).map {
-			String(format: "%.\(precision)f", $0.asDouble()) }
-		let coordsStr = String(
-			format: "(%.\(precision)f, %.\(precision)f)", pointApprox.x, pointApprox.y)
+		let angles = S2(
+			atan2(pointApprox.y, pointApprox.x) * 2.0 / Double.pi,
+			atan2(pointApprox.y, 1.0 - pointApprox.x) * 2.0 / Double.pi)
+		let angleRatio = angles[.S0] / angles[.S1]
+		let angleRatioCF = ContinuedFrac(angleRatio, length:8)
+		let angleRatioStr = CFStr(angleRatioCF)
+		let inverseLog = pointApprox.asBiphase()
+		let cotangents = biradialFromApex(point)//.map(FloatStr)
+		let x = FloatStr(point.x)
+		let y = FloatStr(point.y)
+		let coordsStr = "(\(x), \(y))"
 		print(Cyan("[\(index)]"), caption)
 		print(Green("  cartesian coords"), coordsStr)
-		print(Green("  biradial coords"))
-		print(DarkGray("    S0: \(approxRadii[.S0])"))
-		print("    S1: \(approxRadii[.S1])")
-		print(Green("  biphase coords"))
-		print(DarkGray("    S0: \(approxAngles[.S0])"))
-		print("    S1: \(approxAngles[.S1])")
+		print(Green("  angles over pi/2"), S2Str(angles))
+		print(Green("  inverse angle"), S2Str(inverseLog))
+		print(Green("  angle ratio"), angleRatioStr)
+		print(Green("  cotangent"), S2Str(cotangents))
+		//print(DarkGray("    S0: \(cotangents[.S0])"))
+		//print("    S1: \(cotangents[.S1])")
+		/*print(Green("  1 / log"))
+		print(DarkGray("    S0: \(inverseLog[.S0])"))
+		print("    S1: \(inverseLog[.S1])")*/
 		if let cycle = knownCycles[index] {
 			print(Green("  cycle"), cycle)
+			// for now we divide cycle weight by 2 since it's always doubled
+			let weight = cycle.asTurnPath().weight().map { $0 / 2 }
+			let weightRatio = GmpRational(weight[.S1], over: UInt(weight[.S0]))
+			let weightRatioApprox = ContinuedFrac(weightRatio).approximations()
+			let approxStr = weightRatioApprox.map {$0.description}.joined(separator: " -> ")
+			//let weightStr = DarkGray(String(weight[.S0])) + " " + String(weight[.S1])
+			print(Green("    weight ratio: "), approxStr)
+			/*let bounds: RadiusBounds = BoundsOrSomething(cycle: cycle)
+			let minRadii = bounds.min.map {
+				String(format: "%.\(precision)f", $0)}
+			let maxRadii = bounds.max.map {
+				String(format: "%.\(precision)f", $0)}
+			print(Green("    minRadii: (\(minRadii[.S0]), \(minRadii[.S1]))"))
+			print(Green("    maxRadii: (\(maxRadii[.S0]), \(maxRadii[.S1]))"))*/
 		}
 	}
 
@@ -1051,8 +1090,9 @@ extension PointSet {
 			aggregate.totalLength += cycle.length
 			aggregate.maxLength = max(aggregate.maxLength, cycle.length)
 
-			aggregate.totalWeight += cycle.weight
-			aggregate.maxWeight = max(aggregate.maxWeight, cycle.weight)
+			let weight = cycle.asTurnPath().totalWeight()
+			aggregate.totalWeight += weight
+			aggregate.maxWeight = max(aggregate.maxWeight, weight)
 
 			aggregate.totalSegments += cycle.segments.count
 			aggregate.maxSegments = max(aggregate.maxSegments, cycle.segments.count)
@@ -1062,7 +1102,7 @@ extension PointSet {
 				curStats = entry
 				if cycle.isSymmetric() {
 					aggregate.symmetricCount += 1
-					printPointIndex(i, knownCycles: knownCycles)
+					//printPointIndex(i, knownCycles: knownCycles)
 				}
 			} else {
 				curStats = CycleStats(cycle)

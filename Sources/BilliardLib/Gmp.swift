@@ -4,7 +4,7 @@ import CGmp
 public final class GmpInt: Codable {
   var n: __mpz_struct
 
-  private init() {
+  public init() {
     n = __mpz_struct()
     __gmpz_init(&n)
   }
@@ -124,20 +124,26 @@ public final class GmpRational: Codable {
     q = __mpq_struct()
     __gmpq_init(&q)
   }
-
+	
   public init(_ value: Int, over: UInt) {
     q = __mpq_struct()
     __gmpq_init(&q)
     __gmpq_set_si(&q, value, over)
     __gmpq_canonicalize(&q)
   }
-
+	
   public init(_ value: UInt, over: UInt) {
     q = __mpq_struct()
     __gmpq_init(&q)
     __gmpq_set_ui(&q, value, over)
     __gmpq_canonicalize(&q)
   }
+
+	public init(_ value: GmpInt) {
+		q = __mpq_struct()
+		__gmpq_init(&q)
+		__gmpq_set_num(&q, &value.n)
+	}
 
   public init(fromString str: String) {
     q = __mpq_struct()
@@ -164,11 +170,34 @@ public final class GmpRational: Codable {
     var container = encoder.singleValueContainer()
     try container.encode(s)
   }
-
+	
   deinit {
     __gmpq_clear(&q)
   }
+
+	public func sign() -> Int {
+		var zero = __mpz_struct()
+		__gmpz_init(&zero)
+		defer {
+			__gmpz_clear(&zero)
+		}
+		return Int(__gmpq_cmp_z(&q, &zero))
+	}
+
+	public func floor() -> GmpInt {
+		let num = GmpInt()
+		let den = GmpInt()
+		let quotient = GmpInt()
+		__gmpq_get_num(&num.n, &q)
+		__gmpq_get_den(&den.n, &q)
+		if den == GmpInt.one {
+			return num
+		}
+		__gmpz_fdiv_q(&quotient.n, &num.n, &den.n)
+		return quotient
+	}
 }
+
 
 extension GmpRational: Ring {
   public static var zero: GmpRational {

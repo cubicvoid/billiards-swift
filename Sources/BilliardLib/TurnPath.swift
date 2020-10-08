@@ -1,4 +1,4 @@
-public struct TurnPath: Codable, Hashable {
+public struct TurnPath: Codable, Hashable, Sequence {
 	public let initialOrientation: Singularity.Orientation
 	public let turns: [Int]
 
@@ -9,7 +9,54 @@ public struct TurnPath: Codable, Hashable {
 		self.initialOrientation = initialOrientation
 		self.turns = turns
 	}
+	
+	public func makeIterator() -> TurnPathIterator {
+		return TurnPathIterator(self)
+	}
+	
+	public func weight() -> S2<Int> {
+		var result = S2(0, 0)
+		for step in self {
+			result[step.singularity] += abs(step.turn)
+		}
+		return result
+	}
+	
+	public func totalWeight() -> Int {
+		let w = self.weight()
+		return w[.S0] + w[.S1]
+	}
 }
+
+public struct TurnStep {
+	// The turn, positive for widdershins and negative for clockwise
+	let turn: Int
+	
+	// The singularity the turn is around
+	let singularity: Singularity
+}
+
+public struct TurnPathIterator: IteratorProtocol {
+	private let path: TurnPath
+	private var index: Int = 0
+	private var orientation: Singularity.Orientation
+	
+	init(_ path: TurnPath) {
+		self.path = path
+		self.orientation = path.initialOrientation
+	}
+	
+	public mutating func next() -> TurnStep? {
+		if index >= path.turns.count {
+			return nil
+		}
+		let result = TurnStep(turn: path.turns[index], singularity: orientation.to)
+		index += 1
+		orientation = -orientation
+		return result
+	}
+}
+
 
 extension TurnPath: CustomStringConvertible {
 	public var description: String {
