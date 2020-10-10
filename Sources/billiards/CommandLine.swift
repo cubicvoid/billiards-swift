@@ -35,14 +35,6 @@ class Commands {
 	}
 }
 
-class BilliardsRepl {
-	public init() {
-	}
-
-	public func run() {
-
-	}
-}
 
 extension Vec2: LosslessStringConvertible
 	where R: LosslessStringConvertible
@@ -201,7 +193,7 @@ class PointSetCommands {
 	func cmd_copyCycles(
 		_ args: [String]
 	) {
-		let shouldCancel = self.captureSigint()
+		let shouldCancel = captureSigint()
 		let params = ScanParams(args)
 		guard let fromName: String = params["from"]
 		else {
@@ -362,7 +354,7 @@ class PointSetCommands {
 	func cmd_search(
 		_ args: [String]
 	) {
-		let cancel = self.captureSigint()
+		let cancel = captureSigint()
 		var searchOptions = TrajectorySearchOptions()
 
 		let params = ScanParams(args)
@@ -419,7 +411,7 @@ class PointSetCommands {
 						options.maxPathLength = min(
 							options.maxPathLength, cycle.length - 1)
 					}
-					if cancel() {
+					if !cancel() {
 						activeSearches[index] = true
 					}
 				}
@@ -866,28 +858,6 @@ class PointSetCommands {
 		}
 	}
 	
-	func captureSigint() -> () -> Bool {
-		signal(SIGINT, SIG_IGN)
-		let signalQueue = DispatchQueue(label: "me.faec.billiards.signalQueue")
-		var sigintCount = 0
-		//sigintSrc.suspend()
-		let sigintSrc = DispatchSource.makeSignalSource(
-			signal: SIGINT,
-			queue: signalQueue)
-		sigintSrc.setEventHandler {
-			print(White("Shutting down..."))
-			sigintCount += 1
-			if sigintCount > 1 {
-				exit(0)
-			}
-		}
-		sigintSrc.resume()
-		func shouldCancel() -> Bool {
-			return sigintCount > 0
-		}
-		return shouldCancel
-	}
-
 	func run(_ args: [String]) {
 		guard let command = args.first
 		else {
@@ -1147,3 +1117,4 @@ extension PointSet {
 		print("  odd segment counts: \(oddBucketStr) more:\(overflow)")
 	}
 }
+
