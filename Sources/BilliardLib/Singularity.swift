@@ -139,6 +139,9 @@ public struct S2<k> {
 	}
 }
 
+extension S2: Codable where k: Codable {
+}
+
 extension S2: CustomStringConvertible where k: CustomStringConvertible {
 	public var description: String {
 		return "(S0 -> \(self[.S0]), S1 -> \(self[.S1]))"

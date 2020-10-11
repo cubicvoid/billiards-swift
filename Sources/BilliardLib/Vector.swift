@@ -1,6 +1,6 @@
 import Foundation
 
-public struct Vec2<R : Ring>: Codable, Negatable, Equatable {
+public struct Vec2<R : Codable>: Codable {
   public let x : R
   public let y : R
 
@@ -13,53 +13,56 @@ public struct Vec2<R : Ring>: Codable, Negatable, Equatable {
     self.x = x
     self.y = y
   }
+}
 
-  public static var origin: Vec2 {
+extension Vec2: Equatable where R: Equatable {
+	public static func ==(_ left : Vec2, _ right : Vec2) -> Bool {
+		return (left.x == right.x && left.y == right.y)
+	}
+
+}
+
+public extension Vec2 where R: Ring {
+  static var origin: Vec2 {
     return Vec2(x: R.zero, y: R.zero)
   }
 
-  public subscript(index: Int) -> R {
+  subscript(index: Int) -> R {
     if index % 2 == 0 {
       return x
     }
     return y
   }
 
-  public func complexConjugate() -> Vec2 {
+  func complexConjugate() -> Vec2 {
     return Vec2(x: x, y: -y)
   }
 
-  public func complexConjugateBySign(_ s: Sign) -> Vec2 {
+  func complexConjugateBySign(_ s: Sign) -> Vec2 {
     switch s {
     case .positive: return self
     case .negative: return self.complexConjugate()
     }
   }
 
-  public func complexMul(_ offset: Vec2) -> Vec2 {
+  func complexMul(_ offset: Vec2) -> Vec2 {
     return Vec2(
       x: x * offset.x - y * offset.y, y: x * offset.y + y * offset.x)
   }
 
-  public func dot(_ tc : Vec2) -> R {
+  func dot(_ tc : Vec2) -> R {
     return self.x * tc.x + y * tc.y
   }
 
-  public static func ==(_ left : Vec2, _ right : Vec2) -> Bool {
-    return (left.x == right.x && left.y == right.y)
-  }
-
-  public func cross() -> Vec2 {
+  func cross() -> Vec2 {
     return Vec2(x: -y, y: x)
   }
 
-  public func squaredLength() -> R {
+  func squaredLength() -> R {
     return x * x + y * y
   }
-}
 
-public extension Vec2 {
-  static func +(_ left: Vec2, _ right: Vec2) -> Vec2 {
+	static func +(_ left: Vec2, _ right: Vec2) -> Vec2 {
     return Vec2(x: left.x + right.x, y: left.y + right.y)
   }
 

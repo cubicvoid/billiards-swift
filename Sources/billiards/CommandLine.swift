@@ -27,7 +27,7 @@ class Commands {
 			let pointSetCommands = PointSetCommands(logger: logger)
 			pointSetCommands.run(Array(args[1...]))
 		case "repl":
-			let repl = BilliardsRepl()
+			let repl = BilliardsRepl(logger: logger)
 			repl.run()
 		default:
 			print("Unrecognized command '\(command)'")
