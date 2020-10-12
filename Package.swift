@@ -21,6 +21,7 @@ let package = Package(
 		.systemLibrary(name: "Clibpng", path: "Modules"),
 		.systemLibrary(name: "CGmp", path: "Modules"),
 		.systemLibrary(name: "Clibbsd", path: "Modules"),
+		.systemLibrary(name: "Clibedit", path: "Modules"),
 		.target(
 			name: "billiards",
 			dependencies: ["BilliardLib", "Logging", "Clibpng"]
@@ -33,7 +34,9 @@ let package = Package(
 			name: "BilliardLib",
 			dependencies: ["CGmp", "Clibbsd", "Logging"],
 			linkerSettings: [
-				LinkerSetting.unsafeFlags(["-Xlinker", "-L/usr/local/lib"])]
+				LinkerSetting.unsafeFlags([
+					"-Xlinker", "-L/usr/local/lib",
+				  "-Xlinker", "-L/usr/local/opt/libedit/lib"])]
 		),
 		.testTarget(
 			name: "BilliardLibTests",

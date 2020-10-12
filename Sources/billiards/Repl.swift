@@ -1,6 +1,8 @@
 import Foundation
 import Logging
 
+import Clibedit
+
 import BilliardLib
 
 // This handler:
@@ -70,16 +72,23 @@ class BilliardsRepl {
 
 		while true {
 			handler.reset()
-			
+			guard let cString = readline("> ")
+			else {
+				break
+			}
+			add_history(cString)
+			let line = String(cString: cString)
+			free(cString)
+
 			//print("")
 			//print("cancel: \(cancel())")
 			//sleep(5)
-			displayPrompt()
-			guard let line = readLine(strippingNewline: true)
-			else {
+			//displayPrompt()
+			//guard let line = readLine(strippingNewline: true)
+			//else {
 				// reached the end of stdin
-				return
-			}
+				//return
+			//}
 			execLine(line)
 		}
 	}
@@ -142,4 +151,14 @@ func PathSetCopy(dataManager: DataManager, args: [String]) {
 	try! dataManager.saveCycleSet(cycleSet, name: to)
 	
 	print("\(added) cycles copied")
+}
+
+
+public func Thing() {
+	while let cString = readline("> ") {
+		add_history(cString)
+		let line = String(cString: cString)
+		free(cString)
+		print(line)
+	}
 }

@@ -13,3 +13,9 @@ module Clibpng [system] {
 	link "png"
 	export *
 }
+module Clibedit [system] {
+	header "/usr/local/opt/libedit/include/editline/readline.h"
+	link "curses"
+	link "edit"
+	export *
+}
