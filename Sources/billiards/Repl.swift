@@ -106,9 +106,11 @@ class BilliardsRepl {
 				return
 			}
 			if words[1] == "copy" {
-				PathSetCopy(dataManager: dataManager, args: Array(words[2...]))
+				CycleSetCopy(dataManager: dataManager, args: Array(words[2...]))
+			} else if words[1] == "plot" {
+				CycleSetPlot(dataManager: dataManager, args: Array(words[2...]))
 			} else {
-				fputs("cyclset: unrecognized comand \"\(words[1])\"\n", stderr)
+				fputs("cycleset: unrecognized comand \"\(words[1])\"\n", stderr)
 				return
 			}
 		}
@@ -116,7 +118,7 @@ class BilliardsRepl {
 	}
 }
 
-func PathSetCopy(dataManager: DataManager, args: [String]) {
+func CycleSetCopy(dataManager: DataManager, args: [String]) {
 	let params = ScanParams(args)
 	guard let from: String = params["from"]
 	else {
@@ -153,6 +155,59 @@ func PathSetCopy(dataManager: DataManager, args: [String]) {
 	print("\(added) cycles copied")
 }
 
+func CycleSetPlot(dataManager: DataManager, args: [String]) {
+	if args.count < 1 {
+		fputs("cycleset plot: expected cycle\n", stderr)
+		return
+	}
+	
+	switch LoadCycleSpec(args[0], dataManager: dataManager) {
+	case .success(let element):
+		print("plotting cycle: \(element.cycle)")
+		print("turn path: \(element.cycle.asTurnPath())")
+		print("feasible point: \(element.metadata.feasiblePoint.asDoubleVec())")
+		PlotCycle(element.cycle)
+	case .failure(let error):
+		print("cycleset plot: \(error.description)")
+	}
+}
+
+public struct ReplError: Error {
+	let description: String
+}
+
+func LoadCycleSpec(
+	_ spec: String, dataManager: DataManager
+) -> Result<CycleSet.Element, ReplError> {
+	// match specs like "cyclesetname[5]"
+	let pattern = #"^(\w+)\[(\d+)\]$"#
+	let regex = try! NSRegularExpression(pattern: pattern)
+	let nsrange = NSRange(spec.startIndex..<spec.endIndex, in: spec)
+	/*guard let match = regex.firstMatch(in: spec, range: nsrange)
+	else {
+		return .failure(ReplError(description: "couldn't parse cycle '\(spec)'"))
+	}*/
+	if
+		let match = regex.firstMatch(in: spec, range: nsrange),
+		match.numberOfRanges == 3,
+	  let nameRange = Range(match.range(at: 1), in: spec),
+		let indexRange = Range(match.range(at: 2), in: spec),
+		let index = Int(spec[indexRange])
+	{
+		let name = String(spec[nameRange])
+		guard let cycleSet = try? dataManager.loadCycleSet(name: name)
+		else {
+			return .failure(ReplError(description: "couldn't load cycleset '\(name)'"))
+		}
+		guard let entry = cycleSet[CycleId(index)]
+		else {
+			return .failure(ReplError(description: "cycleset '\(name)' has no entry at index \(index)"))
+		}
+		return .success(entry)
+		//print("cycle set \(name) index \(index)")
+	}
+	return .failure(ReplError(description: "couldn't parse cycle '\(spec)'"))
+}
 
 public func Thing() {
 	while let cString = readline("> ") {

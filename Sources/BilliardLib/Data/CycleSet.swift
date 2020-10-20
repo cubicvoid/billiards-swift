@@ -9,12 +9,12 @@ public struct Bound<T: Codable>: Codable {
 public typealias CycleId = Int64
 
 public struct CycleMetadata: Codable {
-	var feasiblePoint: Point
+	public var feasiblePoint: Point
 	
-	var annotation: [String]?
-	var apexBounds: Vec2<Bound<GmpRational>>?
-	var cotangentBounds: S2<Bound<GmpRational>>?
-	var angleRatio: Bound<Double>?
+	public var annotation: [String]?
+	public var apexBounds: Vec2<Bound<GmpRational>>?
+	public var cotangentBounds: S2<Bound<GmpRational>>?
+	public var angleRatio: Bound<Double>?
 }
 
 //public typealias CycleSet = [TurnCycle: CycleMetadata]
@@ -26,9 +26,9 @@ public class CycleSet {
 	public var nextId: CycleId
 	
 	public struct Element: Codable {
-		let id: CycleId
-		let cycle: TurnCycle
-		var metadata: CycleMetadata
+		public let id: CycleId
+		public let cycle: TurnCycle
+		public var metadata: CycleMetadata
 	}
 	
 	public init() {
@@ -73,6 +73,13 @@ public class CycleSet {
 		//return element
 	}
 	
+	public subscript(_ id: CycleId) -> Element? {
+		guard let index = idLookup[id]
+		else {
+			return nil
+		}
+		return elements[index]
+	}
 }
 
 
