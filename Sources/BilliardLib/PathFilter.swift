@@ -47,20 +47,20 @@ public func SimpleCycleFeasibilityForTurnPath<k: Field & Comparable & Numeric>(
 	if turnPath.turns.count % 2 != 0 {
 		return nil
 	}
-	var totals = S2(0, 0)
+	var totals = BaseValues(0, 0)
 	var o = turnPath.initialOrientation
 	for turn in turnPath.turns {
 		totals[o.to] += turn
 		o = -o
 	}
-	if totals[.S0] != 0 || totals[.S1] != 0 {
+	if totals[.B0] != 0 || totals[.B1] != 0 {
 		return nil
 	}
 	var edge = DiscPathEdge(
 		context: context,
-		coords: S2(
-			s0: Vec2<k>.origin,
-			s1: Vec2(k.one, k.zero)),
+		coords: BaseValues(
+			b0: Vec2<k>.origin,
+			b1: Vec2(k.one, k.zero)),
 		orientation: turnPath.initialOrientation)
 
 	var leftBoundaries: [Vec2<k>] = []
@@ -108,9 +108,9 @@ public func Thingie<k: Field & Comparable & Numeric>(
 	}
 	var edge = DiscPathEdge(
 		context: context,
-		coords: S2(
-			s0: Vec2<k>.origin,
-			s1: Vec2(k.one, k.zero)),
+		coords: BaseValues(
+			b0: Vec2<k>.origin,
+			b1: Vec2(k.one, k.zero)),
 		orientation: turnPath.initialOrientation)
 
 	var leftBoundaries: [Vec2<k>] = []

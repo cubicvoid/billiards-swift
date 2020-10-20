@@ -4,23 +4,23 @@ public class BilliardsContext<k: Field & Comparable> {
 	// 0 < x < 1 and 0 < y < 1/2, though values outside that range are still valid
 	// whenever they make sense.
 	public let coords: Vec2<k>
-	public let r: S2<k>
+	public let r: BaseValues<k>
 
-	public let rotation: S2<UnitPowerCache<k>>
+	public let rotation: BaseValues<UnitPowerCache<k>>
 	
 
-	public init(radii: S2<k>) {
+	public init(radii: BaseValues<k>) {
 		self.r = radii
 		self.coords = Vec2(
-			x: r[.S0] / (r[.S0] + r[.S1]),
-			y: k.one / (r[.S0] + r[.S1]))
-		self.rotation = radii.map {r in
+			x: r[.B0] / (r[.B0] + r[.B1]),
+			y: k.one / (r[.B0] + r[.B1]))
+		self.rotation = radii.map {(r: k) -> UnitPowerCache<k> in
 			UnitPowerCache(fromSquareRoot: Vec2(r, k.one))
 		}
 	}
 
 	public convenience init(apex: Vec2<k>) {
-		let r = S2(apex.x / apex.y, (k.one - apex.x) / apex.y)
+		let r = BaseValues(apex.x / apex.y, (k.one - apex.x) / apex.y)
 		self.init(radii: r)
 	}
 }

@@ -221,15 +221,15 @@ class PointSetCommands {
 		let toPolar = toSet.elements.map {
 			polarFromCartesian($0.asDoubleVec()) }
 		func pDistance(fromIndex: Int, toIndex: Int) -> Double {
-			let d0 = toPolar[toIndex][.S0] - fromPolar[fromIndex][.S0]
-			let d1 = toPolar[toIndex][.S1] - fromPolar[fromIndex][.S1]
+			let d0 = toPolar[toIndex][.B0] - fromPolar[fromIndex][.B0]
+			let d1 = toPolar[toIndex][.B1] - fromPolar[fromIndex][.B1]
 			return d0 * d0 + d1 * d1
 		}
 		func rDistance(fromIndex: Int, toIndex: Int) -> Double {
 			let rFrom = fromRadii[fromIndex]
 			let rTo = toRadii[toIndex]
-			let dr0 = rTo[.S0].asDouble() - rFrom[.S0].asDouble()
-			let dr1 = rTo[.S1].asDouble() - rFrom[.S1].asDouble()
+			let dr0 = rTo[.B0].asDouble() - rFrom[.B0].asDouble()
+			let dr1 = rTo[.B1].asDouble() - rFrom[.B1].asDouble()
 			return dr0 * dr0 + dr1 * dr1
 		}
 
@@ -548,7 +548,7 @@ class PointSetCommands {
 			constraint: ConstraintSpec,
 			apex: Vec2<Double>
 		) -> Vec2<Double> {
-			let baseAngles = S2(
+			let baseAngles = BaseValues(
 				atan2(apex.y, apex.x) * 2.0,
 				atan2(apex.y, 1.0 - apex.x) * 2.0)
 			var leftTotal = Vec2(0.0, 0.0)
@@ -670,7 +670,7 @@ class PointSetCommands {
 		func offsetForTurnPath(
 			_ turnPath: TurnPath, withApex apex: Vec2<Double>
 		) -> Vec2<Double> {
-			let baseAngles = S2(
+			let baseAngles = BaseValues(
 				atan2(apex.y, apex.x) * 2.0,
 				atan2(apex.y, 1.0 - apex.x) * 2.0)
 			var x = 0.0
@@ -921,23 +921,23 @@ struct AggregateStats {
 }
 
 extension Vec2 where R: Numeric {
-	func asBiphase() -> S2<Double> {
+	func asBiphase() -> BaseValues<Double> {
 		let xApprox = x.asDouble()
 		let yApprox = y.asDouble()
-		return S2(
-			s0: Double.pi / (2.0 * atan2(yApprox, xApprox)),
-			s1: Double.pi / (2.0 * atan2(yApprox, 1.0 - xApprox)))
+		return BaseValues(
+			b0: Double.pi / (2.0 * atan2(yApprox, xApprox)),
+			b1: Double.pi / (2.0 * atan2(yApprox, 1.0 - xApprox)))
 	}
 }
 
-func polarFromCartesian(_ coords: Vec2<Double>) -> S2<Double> {
-	return S2(
+func polarFromCartesian(_ coords: Vec2<Double>) -> BaseValues<Double> {
+	return BaseValues(
 		Double.pi / (2.0 * atan2(coords.y, coords.x)),
 		Double.pi / (2.0 * atan2(coords.y, 1.0 - coords.x)))
 }
 
-func biradialFromApex<k: Field>(_ coords: Vec2<k>) -> S2<k> {
-	return S2(coords.x / coords.y, (k.one - coords.x) / coords.y)
+func biradialFromApex<k: Field>(_ coords: Vec2<k>) -> BaseValues<k> {
+	return BaseValues(coords.x / coords.y, (k.one - coords.x) / coords.y)
 }
 
 /*func cartesianFromPolar(_ coords: Vec2<Double>) -> Vec2<Double> {
@@ -1002,20 +1002,20 @@ extension PointSet {
 		func FloatStr<T: Numeric>(_ val: T) -> String {
 			return String(format: "%.\(precision)f", val.asDouble())
 		}
-		func S2Str<T: Numeric>(_ s: S2<T>) -> String {
+		func S2Str<T: Numeric>(_ s: BaseValues<T>) -> String {
 			let strs = s.map { FloatStr($0.asDouble()) }
 			
-			return "(\(DarkGray(strs[.S0])), \(strs[.S1]))"
+			return "(\(DarkGray(strs[.B0])), \(strs[.B1]))"
 		}
 		func CFStr(_ cf: ContinuedFrac) -> String {
 			return cf.approximations().map {$0.description}.joined(separator: " -> ")
 		}
 		let point = self.elements[index]
 		let pointApprox = point.asDoubleVec()
-		let angles = S2(
+		let angles = BaseValues(
 			atan2(pointApprox.y, pointApprox.x) * 2.0 / Double.pi,
 			atan2(pointApprox.y, 1.0 - pointApprox.x) * 2.0 / Double.pi)
-		let angleRatio = angles[.S0] / angles[.S1]
+		let angleRatio = angles[.B0] / angles[.B1]
 		let angleRatioCF = ContinuedFrac(angleRatio, length:8)
 		let angleRatioStr = CFStr(angleRatioCF)
 		let inverseLog = pointApprox.asBiphase()
@@ -1029,27 +1029,27 @@ extension PointSet {
 		print(Green("  inverse angle"), S2Str(inverseLog))
 		print(Green("  angle ratio"), angleRatioStr)
 		print(Green("  cotangent"), S2Str(cotangents))
-		//print(DarkGray("    S0: \(cotangents[.S0])"))
-		//print("    S1: \(cotangents[.S1])")
+		//print(DarkGray("    S0: \(cotangents[.B0])"))
+		//print("    S1: \(cotangents[.B1])")
 		/*print(Green("  1 / log"))
-		print(DarkGray("    S0: \(inverseLog[.S0])"))
-		print("    S1: \(inverseLog[.S1])")*/
+		print(DarkGray("    S0: \(inverseLog[.B0])"))
+		print("    S1: \(inverseLog[.B1])")*/
 		if let cycle = knownCycles[index] {
 			print(Green("  cycle"), cycle)
 			// for now we divide cycle weight by 2 since it's always doubled
 			let weight = cycle.asTurnPath().weight().map { $0 / 2 }
-			let weightRatio = GmpRational(weight[.S1], over: UInt(weight[.S0]))
+			let weightRatio = GmpRational(weight[.B1], over: UInt(weight[.B0]))
 			let weightRatioApprox = ContinuedFrac(weightRatio).approximations()
 			let approxStr = weightRatioApprox.map {$0.description}.joined(separator: " -> ")
-			//let weightStr = DarkGray(String(weight[.S0])) + " " + String(weight[.S1])
+			//let weightStr = DarkGray(String(weight[.B0])) + " " + String(weight[.B1])
 			print(Green("    weight ratio: "), approxStr)
 			/*let bounds: RadiusBounds = BoundsOrSomething(cycle: cycle)
 			let minRadii = bounds.min.map {
 				String(format: "%.\(precision)f", $0)}
 			let maxRadii = bounds.max.map {
 				String(format: "%.\(precision)f", $0)}
-			print(Green("    minRadii: (\(minRadii[.S0]), \(minRadii[.S1]))"))
-			print(Green("    maxRadii: (\(maxRadii[.S0]), \(maxRadii[.S1]))"))*/
+			print(Green("    minRadii: (\(minRadii[.B0]), \(minRadii[.B1]))"))
+			print(Green("    maxRadii: (\(maxRadii[.B0]), \(maxRadii[.B1]))"))*/
 		}
 	}
 

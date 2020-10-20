@@ -13,7 +13,7 @@ public struct CycleMetadata: Codable {
 	
 	public var annotation: [String]?
 	public var apexBounds: Vec2<Bound<GmpRational>>?
-	public var cotangentBounds: S2<Bound<GmpRational>>?
+	public var cotangentBounds: BaseValues<Bound<GmpRational>>?
 	public var angleRatio: Bound<Double>?
 }
 

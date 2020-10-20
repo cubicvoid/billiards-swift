@@ -1,17 +1,17 @@
 import Foundation
 
 public class DiscPathEdge<k: Field & Comparable> {
-	public var coords: S2<Vec2<k>>
-	public var orientation: Singularity.Orientation
-	public var rotationCounts: S2<Int>
+	public var coords: BaseValues<Vec2<k>>
+	public var orientation: BaseOrientation
+	public var rotationCounts: BaseValues<Int>
 	
 	let ctx: BilliardsContext<k>
 	
 	public init(
 		context: BilliardsContext<k>,
-		coords: S2<Vec2<k>>,
-		orientation: Singularity.Orientation,
-		rotationCounts: S2<Int>
+		coords: BaseValues<Vec2<k>>,
+		orientation: BaseOrientation,
+		rotationCounts: BaseValues<Int>
 	) {
 		self.ctx = context
 		self.coords = coords
@@ -21,14 +21,14 @@ public class DiscPathEdge<k: Field & Comparable> {
 	
 	public convenience init(
 		context: BilliardsContext<k>,
-		coords: S2<Vec2<k>>,
-		orientation: Singularity.Orientation = .forward
+		coords: BaseValues<Vec2<k>>,
+		orientation: BaseOrientation = .forward
 	) {
 		self.init(
 			context: context,
 			coords: coords,
 			orientation: orientation,
-			rotationCounts: S2(0, 0))
+			rotationCounts: BaseValues(0, 0))
 	}
 	
 	public func fromCoords() -> Vec2<k> {
@@ -41,13 +41,13 @@ public class DiscPathEdge<k: Field & Comparable> {
 	
 	private func _apexCoordsForSide(
 		_ side: Side,
-		orientation: Singularity.Orientation
+		orientation: BaseOrientation
 	) -> Vec2<k> {
 		if orientation == .backward {
 			return _apexCoordsForSide(-side, orientation: .forward)
 		}
-		let baseCoords = coords[.S0]
-		let offset = coords[.S1] - coords[.S0]
+		let baseCoords = coords[.B0]
+		let offset = coords[.B1] - coords[.B0]
 		var apexCoeff = ctx.coords
 		if side == .right {
 			apexCoeff = apexCoeff.complexConjugate()
@@ -98,7 +98,7 @@ public class DiscPathEdge<k: Field & Comparable> {
 	}
 	
 	public func isAngleZero() -> Bool {
-		return (rotationCounts[.S0] == 0 && rotationCounts[.S1] == 0)
+		return (rotationCounts[.B0] == 0 && rotationCounts[.B1] == 0)
 	}
 
 	// a "real" trajectory should always point between self.coords in the

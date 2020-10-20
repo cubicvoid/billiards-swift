@@ -1,9 +1,9 @@
 public struct TurnPath: Codable, Hashable, Sequence {
-	public let initialOrientation: Singularity.Orientation
+	public let initialOrientation: BaseOrientation
 	public let turns: [Int]
 
 	public init(
-		initialOrientation: Singularity.Orientation,
+		initialOrientation: BaseOrientation,
 		turns: [Int]
 	) {
 		self.initialOrientation = initialOrientation
@@ -14,8 +14,8 @@ public struct TurnPath: Codable, Hashable, Sequence {
 		return TurnPathIterator(self)
 	}
 	
-	public func weight() -> S2<Int> {
-		var result = S2(0, 0)
+	public func weight() -> BaseValues<Int> {
+		var result = BaseValues(0, 0)
 		for step in self {
 			result[step.singularity] += abs(step.turn)
 		}
@@ -24,7 +24,7 @@ public struct TurnPath: Codable, Hashable, Sequence {
 	
 	public func totalWeight() -> Int {
 		let w = self.weight()
-		return w[.S0] + w[.S1]
+		return w[.B0] + w[.B1]
 	}
 }
 
@@ -33,13 +33,13 @@ public struct TurnStep {
 	let turn: Int
 	
 	// The singularity the turn is around
-	let singularity: Singularity
+	let singularity: BaseSingularity
 }
 
 public struct TurnPathIterator: IteratorProtocol {
 	private let path: TurnPath
 	private var index: Int = 0
-	private var orientation: Singularity.Orientation
+	private var orientation: BaseOrientation
 	
 	init(_ path: TurnPath) {
 		self.path = path
@@ -65,10 +65,10 @@ extension TurnPath: CustomStringConvertible {
 }
 
 public class TurnPathBuilder {
-	private let initialOrientation: Singularity.Orientation
+	private let initialOrientation: BaseOrientation
 	private var turns: [Int] = []
 
-	public init(initialOrientation: Singularity.Orientation) {
+	public init(initialOrientation: BaseOrientation) {
 		self.initialOrientation = initialOrientation
 	}
 

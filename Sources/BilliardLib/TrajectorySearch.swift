@@ -111,14 +111,14 @@ func SearchTrajectory<k: Field & Comparable & Numeric>(
 	withApex context: BilliardsContext<k>,
 	forSteps stepCount: Int
 ) -> TurnPath? {
-	let startingCoords = S2(
-		s0: Vec2<k>.origin,
-		s1: Vec2(x: k.one, y: k.zero))
+	let startingCoords = BaseValues(
+		b0: Vec2<k>.origin,
+		b1: Vec2(x: k.one, y: k.zero))
 	let firstEdge: DiscPathEdge<k> = DiscPathEdge(
 		context: context, coords: startingCoords)
 
 	var turns: [Int] = []
-	var angles = S2(s0: 0, s1: 0)
+	var angles = BaseValues(b0: 0, b1: 0)
 
 	for step in firstEdge.stepsForTrajectory(trajectory) {
 		// the current center singularity is the one that the
@@ -127,7 +127,7 @@ func SearchTrajectory<k: Field & Comparable & Numeric>(
 		angles[aroundSingularity] += step.turnDegree
 		turns.append(step.turnDegree)
 
-		if aroundSingularity == .S0 && angles[.S0] == 0 && angles[.S1] == 0 {
+		if aroundSingularity == .B0 && angles[.B0] == 0 && angles[.B1] == 0 {
 			// possible cycle
 			let turnPath = TurnPath(initialOrientation: .forward, turns: turns)
 			if let result = SimpleCycleFeasibilityForTurnPath(

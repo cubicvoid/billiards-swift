@@ -138,7 +138,7 @@ public class QuadPhaseMap<
 
 public class DiscPhaseMap<k: Field & Comparable & CustomStringConvertible> {
   public let apex: Vec2<k>
-  public let base: S2<Vec2<k>>
+  public let base: BaseValues<Vec2<k>>
   //public let center: Singularity
   //public let maxTurn: Int
   public let regions: [Index: Region]
@@ -151,7 +151,7 @@ public class DiscPhaseMap<k: Field & Comparable & CustomStringConvertible> {
     
     //let maxTurns = vertex.maxTurnAroundSingularity
     
-    let base = S2(
+    let base = BaseValues(
       Vec2(x: -apex.x / apex.y, y: k.zero),
       Vec2(x: (k.one - apex.x) / apex.y, y: k.zero))
       //Vec2.origin, Vec2(x: k.one, y: k.zero))
@@ -174,7 +174,7 @@ public class DiscPhaseMap<k: Field & Comparable & CustomStringConvertible> {
       let baseEdge = DiscPathEdge(
           billiards: billiards, coords: base,
           orientation: Singularity.Orientation.to(singularity),
-          rotationCounts: S2(s0: 0, s1: 0))
+          rotationCounts: BaseValues(s0: 0, s1: 0))
       let centerConstraints = [
         Vec3(affineXY: baseEdge.apexForSide(.right)),
         -Vec3(affineXY: baseEdge.apexForSide(.left))
@@ -219,7 +219,7 @@ public class DiscPhaseMap<k: Field & Comparable & CustomStringConvertible> {
 
 /*public class DoubleDiscPhaseMap<k: Field & Comparable & CustomStringConvertible> {
   public let apex: Vec2<k>
-  public let base: S2<Vec2<k>>
+  public let base: BaseValues<Vec2<k>>
   //public let maxTurn: Int
   public let regions: [Index: Region]
   
@@ -232,7 +232,7 @@ public class DiscPhaseMap<k: Field & Comparable & CustomStringConvertible> {
     //let maxTurns = billiards.maxTurnAroundSingularity
     
     
-    let base = S2(
+    let base = BaseValues(
       Vec2(x: -apex.x / apex.y, y: k.zero),
       Vec2(x: (k.one - apex.x) / apex.y, y: k.zero))
       //Vec2.origin, Vec2(x: k.one, y: k.zero))
@@ -242,7 +242,7 @@ public class DiscPhaseMap<k: Field & Comparable & CustomStringConvertible> {
       let baseEdge = DiscPathEdge(
           billiards: billiards, coords: base,
           orientation: Singularity.Orientation.to(singularity),
-          rotationCounts: S2(s0: 0, s1: 0))
+          rotationCounts: BaseValues(s0: 0, s1: 0))
       let centerConstraints = [
         Vec3(affineXY: baseEdge.apexForSide(.right)),
         -Vec3(affineXY: baseEdge.apexForSide(.left))
@@ -289,7 +289,7 @@ public class DiscPhaseMap<k: Field & Comparable & CustomStringConvertible> {
 }*/
 
 public class MonoDoubleDiscPhaseMap<k: Field & Comparable & CustomStringConvertible> {
-  /*public let base: S2<Vec2<k>>
+  /*public let base: BaseValues<Vec2<k>>
   //public let maxTurn: Int
   public let regions: [Index: Region]
   
@@ -302,7 +302,7 @@ public class MonoDoubleDiscPhaseMap<k: Field & Comparable & CustomStringConverti
     let maxTurns = billiards.maxTurnAroundSingularity
     
     
-    let base = S2(
+    let base = BaseValues(
       Vec2(x: -apex.x / apex.y, y: k.zero),
       Vec2(x: (k.one - apex.x) / apex.y, y: k.zero))
       //Vec2.origin, Vec2(x: k.one, y: k.zero))

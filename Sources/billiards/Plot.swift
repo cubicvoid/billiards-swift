@@ -41,7 +41,7 @@ func offsetForTurnPath(
 	apex: Vec2<Double>
 ) -> Vec2<Double> {
 	
-	let baseAngles = S2(
+	let baseAngles = BaseValues(
 		atan2(apex.y, apex.x) * 2.0,
 		atan2(apex.y, 1.0 - apex.x) * 2.0)
 	var total = Vec2(0.0, 0.0)

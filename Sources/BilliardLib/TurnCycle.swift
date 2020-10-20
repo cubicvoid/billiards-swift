@@ -65,15 +65,15 @@ public final class TurnCycle {
 	// Returns a turn path that generates this cycle. The choice of turn path
 	// is arbitrary but deterministic for a given cycle.
 	public func asTurnPath() -> TurnPath {
-		let coeff = S2(s0: 1, s1: -1)
+		let coeff = BaseValues(b0: 1, b1: -1)
 		var turns: [Int] = []
 		let initialOrientation = segments.first!.initialOrientation
-		var singularity = initialOrientation.to
+		var orientation = initialOrientation
 		var sign = 1
 		for segment in segments {
 			for degree in segment.turnDegrees {
-				turns.append(coeff[singularity] * sign * degree)
-				singularity = singularity.next()
+				turns.append(coeff[orientation.to] * sign * degree)
+				orientation = -orientation
 			}
 			sign = -sign
 		}
@@ -83,11 +83,11 @@ public final class TurnCycle {
 	}
 
 	public final class Segment {
-		public let initialOrientation: Singularity.Orientation
+		public let initialOrientation: BaseOrientation
 		public let turnDegrees: [Int]
 
 		public init(
-			initialOrientation: Singularity.Orientation, turnDegrees: [Int]
+			initialOrientation: BaseOrientation, turnDegrees: [Int]
 		) {
 			self.initialOrientation = initialOrientation
 			self.turnDegrees = turnDegrees
@@ -107,7 +107,7 @@ extension TurnCycle.Segment: Codable, Hashable {
 	public convenience init(from: Decoder) throws {
 		var container = try from.unkeyedContainer()
 		let initialOrientation =
-			try container.decode(Singularity.Orientation.self)
+			try container.decode(BaseOrientation.self)
 		let turnDegrees = try container.decode([Int].self)
 		self.init(
 			initialOrientation: initialOrientation,
@@ -154,11 +154,11 @@ fileprivate func _Earth(_ str: String) -> String {
 }
 
 fileprivate func _ColorString(
-	_ str: String, forSingularity s: Singularity
+	_ str: String, forSingularity s: BaseSingularity
 ) -> String {
 	switch s {
-		case .S0: return _Earth(str)
-		case .S1: return _Sun(str)
+		case .B0: return _Earth(str)
+		case .B1: return _Sun(str)
 	}
 }
 
@@ -193,7 +193,7 @@ fileprivate func _SubstringForTurnCycleSegment(
 }
 
 fileprivate func _SeparatorForOrientation(
-	_ orientation: Singularity.Orientation
+	_ orientation: BaseOrientation
 ) -> String {
 	switch orientation {
 		//case .forward: return " 🌓 "
@@ -402,8 +402,8 @@ extension TurnCycle {
 }
 
 extension TurnPath {
-	public func maxDegrees() -> S2<Int> {
-		var result = S2(0, 0)
+	public func maxDegrees() -> BaseValues<Int> {
+		var result = BaseValues(0, 0)
 		for step in self {
 			let degree = abs(step.turn)
 			result[step.singularity] = Swift.max(result[step.singularity], degree)
@@ -414,8 +414,8 @@ extension TurnPath {
 
 // The combinatorial data for a single flip within a turn cycle.
 public struct TurnFlip {
-	public let orientation: Singularity.Orientation
-	public let degrees: S2<Int>
+	public let orientation: BaseOrientation
+	public let degrees: BaseValues<Int>
 }
 
 public struct FlipIterator: Sequence, IteratorProtocol {
@@ -437,8 +437,8 @@ public struct FlipIterator: Sequence, IteratorProtocol {
 		let curDegree = segment.turnDegrees.first!
 		let orientation = segment.initialOrientation
 		let degrees = (orientation == .forward)
-			? S2(prevDegree, curDegree)
-			: S2(curDegree, prevDegree)
+			? BaseValues(prevDegree, curDegree)
+			: BaseValues(curDegree, prevDegree)
 		prevSegment = segment
 		segmentIndex += 1
 		return TurnFlip(orientation: orientation, degrees: degrees)
@@ -452,8 +452,8 @@ extension TurnCycle {
 }
 
 public struct RadiusBounds {
-	public let min: S2<Double>
-	public let max: S2<Double>
+	public let min: BaseValues<Double>
+	public let max: BaseValues<Double>
 }
 
 
@@ -475,9 +475,9 @@ public func BoundsOrSomething(cycle: TurnCycle) -> RadiusBounds {
 
 	// start from the worst case: the maximum possible turn degree
 	//var minAngles = maxDegrees.map { minOccluded / Double($0) }
-	var minAngles = S2(0.0, 0.0)
+	var minAngles = BaseValues(0.0, 0.0)
 	for flip in cycle.flips() {
-		for o in Singularity.Orientation.all {
+		for o in BaseOrientation.all {
 			let s = o.from
 			let t = o.to
 			//minAngles[s] =
