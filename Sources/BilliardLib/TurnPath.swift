@@ -1,23 +1,140 @@
-public struct TurnPath: Codable, Hashable, Sequence {
-	public let initialOrientation: BaseOrientation
-	public let turns: [Int]
+public struct Turn: Codable, Hashable, CustomStringConvertible {
+	let degree: Int
+
+	let singularity: BaseSingularity
+
+	// A semi-arbitrary ordering on turns: sort first by absolute degree,
+	// then by center singularity, then by reverse sign.
+	// This ordering has no particular theoretical justification other
+	// than grouping together paths that we tend to want grouped together;
+	// other choices would work, we just need something consistent to use for
+	// cycle canonicalization.
+	public func compareTo(_ t: Turn) -> Comparison {
+		let absComparison = Compare(abs(degree), to: abs(t.degree))
+		if absComparison != .equal {
+			return absComparison
+		}
+		if singularity == .B0 && t.singularity == .B1 {
+			return .less
+		}
+		if singularity == .B1 && t.singularity == .B0 {
+			return .greater
+		}
+		if degree == t.degree {
+			return .equal
+		}
+		if degree > 0 {
+			return .less
+		}
+		return .greater
+	}
+
+	public func inverse() -> Turn {
+		return Turn(degree: -degree, singularity: singularity)
+	}
+
+	public var description: String {
+		return "\(singularity):\(degree)"
+	}
+}
+
+func Mod(_ a: Int, by n: Int) -> Int {
+	return ((a % n) + n) % n
+}
+
+public struct TurnPath: Codable, Hashable, CustomStringConvertible {
+	//public let initialOrientation: BaseOrientation
+	//public let turns: [Int]
+	public let turns: [Turn]
+
 
 	public init(
 		initialOrientation: BaseOrientation,
-		turns: [Int]
+		turnDegrees: [Int]
 	) {
-		self.initialOrientation = initialOrientation
+		var turns: [Turn] = [];
+		var orientation = initialOrientation
+		for degree in turnDegrees {
+			turns.append(Turn(degree: degree, singularity: orientation.to))
+			orientation = -orientation
+		}
 		self.turns = turns
 	}
-	
-	public func makeIterator() -> TurnPathIterator {
-		return TurnPathIterator(self)
+
+	public init(turns: [Turn]) {
+		var reduced: [Turn] = []
+		for turn in turns {
+			// If both turns are around the same singularity, merge them instead
+			// of adding a new one.
+			if let last = reduced.last, last.singularity == turn.singularity {
+				let degreeSum = last.degree + turn.degree
+				// If the degrees cancel each other out, remove the turn entirely.
+				if degreeSum == 0 {
+					reduced.removeLast()
+				} else {
+					reduced[reduced.count - 1] =
+						Turn(degree: degreeSum, singularity: turn.singularity)
+				}
+			}
+		}
+		self.turns = reduced
+	}
+
+	static func empty() -> TurnPath {
+		return TurnPath(turns: [])
+	}
+
+	// returns the rotation in which turns[0] appears at the given index
+	public func rotatedBy(_ index: Int) -> TurnPath {
+		if index == 0 {
+			return self
+		}
+		let start = Mod(index, by: turns.count)
+		let split = turns.count - start
+		return TurnPath(turns: Array(turns[split...] + turns[..<split]))
+	}
+
+	public func inverse() -> TurnPath {
+		if turns.count == 0 {
+			return self
+		}
+		return TurnPath(turns: turns.reversed().map { $0.inverse() })
+	}
+
+	public func transpose() -> TurnPath {
+		return TurnPath(turns: turns.map { $0.inverse() })
+	}
+
+	public func pow(_ n: Int) -> TurnPath {
+		if n == 0 {
+			return empty()
+		}
+		if n < 0 {
+			return self.inverse().pow(-n)
+		}
+		if n == 1 {
+			return self
+		}
+		let half = n / 2
+		let root = pow(half)
+		let rootSquared = root * root
+		return (n % 2 == 0)
+			? rootSquared
+			: rootSquared * self
+	}
+
+	public func degree() -> BaseValues<Int> {
+		var result = BaseValues(0, 0)
+		for turn in turns {
+			result[turn.singularity] += turn.degree
+		}
+		return result
 	}
 	
 	public func weight() -> BaseValues<Int> {
 		var result = BaseValues(0, 0)
-		for step in self {
-			result[step.singularity] += abs(step.turn)
+		for turn in turns {
+			result[turn.singularity] += abs(turn.degree)
 		}
 		return result
 	}
@@ -26,45 +143,19 @@ public struct TurnPath: Codable, Hashable, Sequence {
 		let w = self.weight()
 		return w[.B0] + w[.B1]
 	}
-}
 
-public struct TurnStep {
-	// The turn, positive for widdershins and negative for clockwise
-	let turn: Int
-	
-	// The singularity the turn is around
-	let singularity: BaseSingularity
-}
-
-public struct TurnPathIterator: IteratorProtocol {
-	private let path: TurnPath
-	private var index: Int = 0
-	private var orientation: BaseOrientation
-	
-	init(_ path: TurnPath) {
-		self.path = path
-		self.orientation = path.initialOrientation
-	}
-	
-	public mutating func next() -> TurnStep? {
-		if index >= path.turns.count {
-			return nil
-		}
-		let result = TurnStep(turn: path.turns[index], singularity: orientation.to)
-		index += 1
-		orientation = -orientation
-		return result
-	}
-}
-
-
-extension TurnPath: CustomStringConvertible {
 	public var description: String {
-		return "\(initialOrientation.from)->\(turns)"
+		return "\(turns)"
 	}
 }
 
-public class TurnPathBuilder {
+extension TurnPath {
+	static func *(_ left: TurnPath, _ right: TurnPath) -> TurnPath {
+		return TurnPath(turns: left.turns + right.turns)
+	}
+}
+
+/*public class TurnPathBuilder {
 	private let initialOrientation: BaseOrientation
 	private var turns: [Int] = []
 
@@ -79,9 +170,9 @@ public class TurnPathBuilder {
 	public func build() -> TurnPath {
 		return TurnPath(
 			initialOrientation: initialOrientation,
-			turns: turns)
+			turnDegrees: turns)
 	}
-}
+}*/
 
 extension TurnPath {
 	public func compareTo(_ path: TurnPath) -> Comparison {
@@ -90,9 +181,12 @@ extension TurnPath {
 		if lengthComparison != .equal {
 			return lengthComparison
 		}
+		if turns.count == 0 {
+			return .equal
+		}
 
-		let totalTurnsSelf = turns.map(abs).reduce(0, +)
-		let totalTurnsPath = path.turns.map(abs).reduce(0, +)
+		let totalTurnsSelf = turns.map { abs($0.degree) }.reduce(0, +)
+		let totalTurnsPath = path.turns.map { abs($0.degree) }.reduce(0, +)
 		let totalComparison =
 			Compare(totalTurnsSelf, to: totalTurnsPath)
 		if totalComparison != .equal {
@@ -100,19 +194,37 @@ extension TurnPath {
 		}
 
 		for i in 0..<turns.count {
-			let turnComparison = Compare(turns[i], to: path.turns[i])
+			let turnComparison = turns[i].compareTo(path.turns[i])
 			if turnComparison != .equal {
 				return turnComparison
 			}
 		}
+		return .equal
+	}
 
-		if initialOrientation == path.initialOrientation {
-			return .equal
+	public func monotonicComponents() -> [TurnPath] {
+		var components: [TurnPath] = []
+		let boundaries = signBoundariesForTurns(turns)
+		for i in 1..<boundaries.count {
+			let start = boundaries[i-1]
+			let end = boundaries[i]
+			components.append(TurnPath(turns: Array(turns[start..<end])))
 		}
-		if initialOrientation == .forward {
-			// forward precedes backward
-			return .less
-		}
-		return .greater
+		return components
 	}
 }
+
+fileprivate func signBoundariesForTurns(_ turns: [Turn]) -> [Int] {
+	var boundaries: [Int] = [];
+	var lastSign: Sign? = nil
+	for (i, turn) in turns.enumerated() {
+		let sign = Sign.of(turn.degree)!
+		if sign != lastSign {
+			boundaries.append(i)
+		}
+		lastSign = sign
+	}
+	boundaries.append(turns.count)
+	return boundaries
+}
+

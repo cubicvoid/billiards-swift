@@ -1,4 +1,4 @@
-public enum BaseSingularity: Hashable {
+public enum BaseSingularity: Codable, Hashable {
 	case B0
 	case B1
 }

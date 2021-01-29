@@ -1,7 +1,39 @@
 import Foundation
 
+// calculates the minimum length of all conjugates of the given path by
+// cancelling out any complementary prefix / suffix
+func reducedLength(_ path: TurnPath) -> Int {
+	var suffixLength = 0
+	while (suffixLength+1) * 2 <= path.count {
+		let before = path[suffixLength]
+		let after = path[path.count - 1 - suffixLength]
+		if before != after.inverse() {
+			break
+		}
+		suffixLength += 1
+	}
+	return path.turns.count - 2 * suffixLength
+}
+
+// A TurnCycle represents the quotient of a TurnPath by conjugation,
+// exponentiation and negation. It is meant to represent the cycle
+// induced by infinitely repeating a given path.
+// Any turn path p naturally induces a cycle as the (bidirectional)
+// limit of p^n. conversely, for any cycle we can choose a minimum-length
+// path p such that every p' generating the same cycle has a unique
+// expression in terms of p, parameterized by a TurnCycle.Generator.
+// Specifically:
+//   p' = conjugate.inverse() * p^power * conjugate
 public final class TurnCycle {
+	public struct PathSpec {
+		let power: Int
+		let conjugate: TurnPath
+
+		let sign: Sign
+	}
+
 	public enum CycleError: Error {
+		case identityCycle
 		case oddLengthPath
 		case zeroLengthPath
 		case zeroTurn
@@ -9,11 +41,26 @@ public final class TurnCycle {
 		case nonzeroRotation
 	}
 
-	public let segments: [Segment]
-	public let length: Int
+	// A turn path selected consistently but semi-arbitrarily from
+	// the set of paths generating this cycle under exponentiation
+	let path: TurnPath
+
+	private init(canonicalPath: TurnPath) {
+		path = canonicalPath
+	}
+
+	public static func fromPath(_ path: TurnPath) -> (TurnCycle, PathSpec) {
+
+	}
+
+	public func pathForSpec(_ s: PathSpec) -> TurnPath {
+		let inner = path.pow(s.power)
+		let outer = s.conjugate.inverse() * inner * s.conjugate
+		return outer.reflected(sign)
+	}
 	//public let weight: Int
 
-	private init(segments: [Segment]) {
+	/*private init(segments: [Segment]) {
 		let segs = CanonicallyOrderSegments(segments)
 		
 		let segmentLengths = segs.map { $0.turnDegrees.count }
@@ -32,7 +79,13 @@ public final class TurnCycle {
 			throw CycleError.oddLengthPath
 		}
 		
-		let boundaries = segmentBoundariesForTurns(path.turns)
+		var components = path.monotonicComponents()
+		if components.count % 2 != 0 {
+			let last = components.removeLast()
+			// The first and last component are the same sign, merge them
+			components[0] = last * components[0]
+		}
+		let boundaries = segmentBoundariesForTurnPath(path)
 		let initialOrientation =
 			(boundaries[0] % 2 == 0)
 				? path.initialOrientation
@@ -49,10 +102,10 @@ public final class TurnCycle {
 			var turnDegrees: [Int] = []
 			for j in 0..<length {
 				let index = (start + j) % path.turns.count
-				turnDegrees.append(abs(path.turns[index]))
+				turnMagnitudes.append(abs(path.turns[index]))
 			}
 			segments.append(
-				Segment(initialOrientation: orientation, turnDegrees: turnDegrees))
+				Segment(initialOrientation: orientation, turnMagnitudes: turnMagnitudes))
 			if length % 2 != 0 {
 				// If this segment is odd length, the next one will start on the
 				// opposite orientation.
@@ -79,7 +132,7 @@ public final class TurnCycle {
 		}
 		return TurnPath(
 			initialOrientation: initialOrientation,
-			turns: turns)
+			turnsDegrees: turns)
 	}
 
 	public final class Segment {
@@ -100,9 +153,11 @@ public final class TurnCycle {
 				initialOrientation: newOrientation,
 				turnDegrees: turnDegrees.reversed())
 		}
-	}
+	}*/
+
 }
 
+/*
 extension TurnCycle.Segment: Codable, Hashable {
 	public convenience init(from: Decoder) throws {
 		var container = try from.unkeyedContainer()
@@ -144,7 +199,7 @@ extension TurnCycle: Codable, Hashable {
 		}
 	}
 }
-
+*/
 fileprivate func _Sun(_ str: String) -> String {
 	return str
 }
@@ -278,7 +333,7 @@ extension TurnCycle: Comparable {
 	}
 }
 
-extension TurnCycle.Segment: Comparable {
+/*extension TurnCycle.Segment: Comparable {
 	// implements a somewhat arbitrary total order on
 	// Segments,
 	public func compareTo(_ s: TurnCycle.Segment) -> Comparison {
@@ -327,19 +382,6 @@ extension TurnCycle.Segment: Comparable {
 	public static func == (lhs: TurnCycle.Segment, rhs: TurnCycle.Segment) -> Bool {
 		return lhs.compareTo(rhs) == .equal
 	}
-}
-
-fileprivate func segmentBoundariesForTurns(_ turns: [Int]) -> [Int] {
-	var boundaries: [Int] = [];
-	var lastSign = Sign.of(turns.last!)!
-	for (i, turn) in turns.enumerated() {
-		let sign = Sign.of(turn)!
-		if sign == lastSign {
-			boundaries.append(i)
-		}
-		lastSign = sign
-	}
-	return boundaries
 }
 
 // This helper rotates an array of monotonic segments to start
@@ -492,5 +534,5 @@ public func BoundsOrSomething(cycle: TurnCycle) -> RadiusBounds {
 	let maxRadii = minAngles.map { 1.0 / tan($0) }
 	
 	return RadiusBounds(min: minRadii, max: maxRadii)
-}
+}*/
 
