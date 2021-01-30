@@ -2,7 +2,7 @@ import Foundation
 
 public struct SimpleCycleFeasibilityResult<k: Field & Comparable & Numeric> {
 	public let apex: BilliardsContext<k>
-	public let turnPath: TurnPath
+	public let turnPath: Path
 	public let margin: k
 
 	public var feasible: Bool {
@@ -40,18 +40,16 @@ public struct SimpleCycleFeasibilityResult<k: Field & Comparable & Numeric> {
 // (meaning no explicit use of phase space): compute the coordinates of all
 // boundary vertices, project them all orthogonally to the path offset, check
 // whether the upper and lower boundaries have a positive separation.
-public func SimpleCycleFeasibilityForTurnPath<k: Field & Comparable & Numeric>(
-	_ turnPath: TurnPath,
+public func SimpleCycleFeasibilityForPath<k: Field & Comparable & Numeric>(
+	_ turnPath: Path,
 	context: BilliardsContext<k>
 ) -> SimpleCycleFeasibilityResult<k>? {
-	if turnPath.turns.count % 2 != 0 {
+	if turnPath.count == 0 || turnPath.count % 2 != 0 {
 		return nil
 	}
 	var totals = BaseValues(0, 0)
-	var o = turnPath.initialOrientation
-	for turn in turnPath.turns {
-		totals[o.to] += turn
-		o = -o
+	for turn in turnPath {
+		totals[turn.singularity] += turn.degree
 	}
 	if totals[.B0] != 0 || totals[.B1] != 0 {
 		return nil
@@ -68,7 +66,7 @@ public func SimpleCycleFeasibilityForTurnPath<k: Field & Comparable & Numeric>(
 
 	leftBoundaries.append(edge.apexCoordsForSide(.left))
 	rightBoundaries.append(edge.apexCoordsForSide(.right))
-	for turn in turnPath.turns {
+	for turn in turnPath {
 		let turnSign = Sign.of(turn)!
 		guard let newEdge = edge.reversed().turnedBy(turn, angleBound: .pi)
 		else {
@@ -100,10 +98,10 @@ public func SimpleCycleFeasibilityForTurnPath<k: Field & Comparable & Numeric>(
 }
 
 public func Thingie<k: Field & Comparable & Numeric>(
-	_ turnPath: TurnPath,
+	_ turnPath: Path,
 	context: BilliardsContext<k>
 ) -> SimpleCycleFeasibilityResult<k>? {
-	if turnPath.turns.count % 2 != 0 {
+	if turnPath.count % 2 != 0 {
 		return nil
 	}
 	var edge = DiscPathEdge(
@@ -116,8 +114,8 @@ public func Thingie<k: Field & Comparable & Numeric>(
 	var leftBoundaries: [Vec2<k>] = []
 	var rightBoundaries: [Vec2<k>] = []
 
-	for turn in turnPath.turns {
-		let turnSign = Sign.of(turn)!
+	for turn in turnPath {
+		let turnSign = Sign.of(turn.degree)!
 		guard let newEdge = edge.reversed().turnedBy(turn, angleBound: .pi)
 		else {
 			// no feasible path can cover more than pi of a disc boundary

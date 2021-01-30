@@ -2,7 +2,7 @@ import Foundation
 
 // calculates the minimum length of all conjugates of the given path by
 // cancelling out any complementary prefix / suffix
-func reducedLength(_ path: TurnPath) -> Int {
+func reducedLength(_ path: Path) -> Int {
 	var suffixLength = 0
 	while (suffixLength+1) * 2 <= path.count {
 		let before = path[suffixLength]
@@ -12,24 +12,28 @@ func reducedLength(_ path: TurnPath) -> Int {
 		}
 		suffixLength += 1
 	}
-	return path.turns.count - 2 * suffixLength
+	return path.count - 2 * suffixLength
 }
 
-// A TurnCycle represents the quotient of a TurnPath by conjugation,
-// exponentiation and negation. It is meant to represent the cycle
+// A TurnCycle represents the quotient of a Path by conjugation,
+// exponentiation and involution (through the homomorphism sending
+// the two generators to their inverses).
+// It is meant to represent the cycle
 // induced by infinitely repeating a given path.
 // Any turn path p naturally induces a cycle as the (bidirectional)
 // limit of p^n. conversely, for any cycle we can choose a minimum-length
 // path p such that every p' generating the same cycle has a unique
 // expression in terms of p, parameterized by a TurnCycle.Generator.
 // Specifically:
-//   p' = conjugate.inverse() * p^power * conjugate
-public final class TurnCycle {
+//   p' = transpose * (conjugate.inverse() * p^power * conjugate)
+// where the transpose product indicates the elementwise inverse, i.e.
+// the automorphism that sends each turn to its inverse.
+public struct TurnCycle: Codable, Hashable {
 	public struct PathSpec {
 		let power: Int
-		let conjugate: TurnPath
+		let conjugate: Path
 
-		let sign: Sign
+		let transpose: Bool
 	}
 
 	public enum CycleError: Error {
@@ -43,20 +47,23 @@ public final class TurnCycle {
 
 	// A turn path selected consistently but semi-arbitrarily from
 	// the set of paths generating this cycle under exponentiation
-	let path: TurnPath
+	let path: Path
 
-	private init(canonicalPath: TurnPath) {
+	private init(canonicalPath: Path) {
 		path = canonicalPath
 	}
 
-	public static func fromPath(_ path: TurnPath) -> (TurnCycle, PathSpec) {
+	public static func fromPath(_ path: Path) -> (TurnCycle, PathSpec) {
 
 	}
 
-	public func pathForSpec(_ s: PathSpec) -> TurnPath {
+	public func pathForSpec(_ s: PathSpec) -> Path {
 		let inner = path.pow(s.power)
 		let outer = s.conjugate.inverse() * inner * s.conjugate
-		return outer.reflected(sign)
+		if s.transpose {
+			return outer.transpose()
+		}
+		return outer
 	}
 	//public let weight: Int
 
@@ -72,7 +79,7 @@ public final class TurnCycle {
 		self.segments = segs
 	}
 	
-	public convenience init(repeatingPath path: TurnPath) throws {
+	public convenience init(repeatingPath path: Path) throws {
 		// Only turn paths from a singularity to itself
 		// (hence even length) can be repeated.
 		if path.turns.count % 2 != 0 {
@@ -85,7 +92,7 @@ public final class TurnCycle {
 			// The first and last component are the same sign, merge them
 			components[0] = last * components[0]
 		}
-		let boundaries = segmentBoundariesForTurnPath(path)
+		let boundaries = segmentBoundariesForPath(path)
 		let initialOrientation =
 			(boundaries[0] % 2 == 0)
 				? path.initialOrientation
@@ -117,7 +124,7 @@ public final class TurnCycle {
 
 	// Returns a turn path that generates this cycle. The choice of turn path
 	// is arbitrary but deterministic for a given cycle.
-	public func asTurnPath() -> TurnPath {
+	public func asPath() -> Path {
 		let coeff = BaseValues(b0: 1, b1: -1)
 		var turns: [Int] = []
 		let initialOrientation = segments.first!.initialOrientation
@@ -130,7 +137,7 @@ public final class TurnCycle {
 			}
 			sign = -sign
 		}
-		return TurnPath(
+		return Path(
 			initialOrientation: initialOrientation,
 			turnsDegrees: turns)
 	}
@@ -217,22 +224,20 @@ fileprivate func _ColorString(
 	}
 }
 
-fileprivate func _SubstringForTurnPath(
-	_ turnPath: TurnPath, signStr: String
+fileprivate func _SubstringForPath(
+	_ turnPath: Path, signStr: String
 ) -> String {
 	var turnStrings: [String] = []
-	var orientation = turnPath.initialOrientation
-	for turn in turnPath.turns {
+	for turn in turnPath {
 		let turnString = _ColorString(
 			signStr + turn.description,
-			forSingularity: orientation.to)
+			forSingularity: turn.singularity)
 		turnStrings.append(turnString)
-		orientation = -orientation
 	}
 	return turnStrings.joined(separator: " ")
 }
 
-fileprivate func _SubstringForTurnCycleSegment(
+/*fileprivate func _SubstringForTurnCycleSegment(
 	_ segment: TurnCycle.Segment, signStr: String
 ) -> String {
 	var turnStrings: [String] = []
@@ -245,7 +250,7 @@ fileprivate func _SubstringForTurnCycleSegment(
 		orientation = -orientation
 	}
 	return turnStrings.joined(separator: " ")
-}
+}*/
 
 fileprivate func _SeparatorForOrientation(
 	_ orientation: BaseOrientation
@@ -258,6 +263,7 @@ fileprivate func _SeparatorForOrientation(
 	}
 }
 
+/*
 extension TurnCycle: CustomStringConvertible {
 	public var description: String {
 		let initialOrientation = segments.first!.initialOrientation
@@ -275,8 +281,9 @@ extension TurnCycle: CustomStringConvertible {
 		return strs.joined()
 	}
 }
+*/
 
-
+/*
 fileprivate func CompareIndex(
 	_ index0: Int, toIndex index1: Int,
 	withSegments segments: [TurnCycle.Segment]
@@ -292,7 +299,9 @@ fileprivate func CompareIndex(
 	}
 	return .equal
 }
+*/
 
+/*
 extension TurnCycle: Comparable {
 	public func compareTo(_ cycle: TurnCycle) -> Comparison {
 		let lengthComparison = Compare(self.length, to: cycle.length)
@@ -301,8 +310,8 @@ extension TurnCycle: Comparable {
 		}
 
 		let weightComparison = Compare(
-			self.asTurnPath().totalWeight(),
-			to: cycle.asTurnPath().totalWeight())
+			self.asPath().totalWeight(),
+			to: cycle.asPath().totalWeight())
 		if weightComparison != .equal {
 			return weightComparison
 		}
@@ -332,6 +341,7 @@ extension TurnCycle: Comparable {
 		return cycle0.compareTo(cycle1) == .equal
 	}
 }
+*/
 
 /*extension TurnCycle.Segment: Comparable {
 	// implements a somewhat arbitrary total order on
@@ -386,7 +396,7 @@ extension TurnCycle: Comparable {
 
 // This helper rotates an array of monotonic segments to start
 // in "canonical" order (which is just lex order on the monotonic
-// segments using the Compare:(TurnPath) to: ordering above)
+// segments using the Compare:(Path) to: ordering above)
 fileprivate func CanonicallyOrderSegments(
 	_ segments: [TurnCycle.Segment]
 ) -> [TurnCycle.Segment] {
@@ -425,7 +435,7 @@ fileprivate func CanonicallyOrderSegments(
 
 extension TurnCycle {
 	public func isSymmetric() -> Bool {
-		let path = self.asTurnPath()
+		let path = self.asPath()
 		let n = path.turns.count
 		// a cycle has a reflective symmetry iff its turn path representatives do.
 		centerLoop:
@@ -443,7 +453,7 @@ extension TurnCycle {
 	}
 }
 
-extension TurnPath {
+extension Path {
 	public func maxDegrees() -> BaseValues<Int> {
 		var result = BaseValues(0, 0)
 		for step in self {
@@ -504,7 +514,7 @@ public struct RadiusBounds {
 // Any feasible apex is guaranteed to be within the returned
 // bounds.
 public func BoundsOrSomething(cycle: TurnCycle) -> RadiusBounds {
-	let maxDegrees = cycle.asTurnPath().maxDegrees()
+	let maxDegrees = cycle.asPath().maxDegrees()
 	let maxAngles = maxDegrees.map { Double.pi / Double(2 * ($0 - 1)) }
 	let minRadii = maxAngles.map { 1.0 / tan($0) }
 	

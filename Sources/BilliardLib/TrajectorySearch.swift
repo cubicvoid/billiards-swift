@@ -35,7 +35,7 @@ public func TrajectorySearchForApexCoords(
 	let context = BilliardsContext(apex: apexCoords)
 	let apexApprox = BilliardsContext(apex: apexCoordsApprox)
 
-	func addCycleForPath(_ path: TurnPath) {
+	func addCycleForPath(_ path: Path) {
 		let cycle = try! TurnCycle(repeatingPath: path)
 		if shortestCycle == nil || cycle < shortestCycle! {
 			shortestCycle = cycle
@@ -74,7 +74,7 @@ public func TrajectorySearchForApexCoords(
 			forSteps: stepCount
 		) {
 			// make sure it works with exact computation too
-			if let result = SimpleCycleFeasibilityForTurnPath(path, context: context) {
+			if let result = SimpleCycleFeasibilityForPath(path, context: context) {
 				if result.feasible {
 					addCycleForPath(path)
 				}
@@ -110,7 +110,7 @@ func SearchTrajectory<k: Field & Comparable & Numeric>(
 	_ trajectory: Vec3<k>,
 	withApex context: BilliardsContext<k>,
 	forSteps stepCount: Int
-) -> TurnPath? {
+) -> Path? {
 	let startingCoords = BaseValues(
 		b0: Vec2<k>.origin,
 		b1: Vec2(x: k.one, y: k.zero))
@@ -129,8 +129,8 @@ func SearchTrajectory<k: Field & Comparable & Numeric>(
 
 		if aroundSingularity == .B0 && angles[.B0] == 0 && angles[.B1] == 0 {
 			// possible cycle
-			let turnPath = TurnPath(initialOrientation: .forward, turns: turns)
-			if let result = SimpleCycleFeasibilityForTurnPath(
+			let turnPath = Path(initialOrientation: .forward, turns: turns)
+			if let result = SimpleCycleFeasibilityForPath(
 				turnPath, context: context
 			) {
 				if result.feasible { return turnPath }

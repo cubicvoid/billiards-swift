@@ -1,13 +1,13 @@
 extension DataManager {
-	public func knownCyclesForPointSet(name: String) -> [Int: TurnPath] {
+	public func knownCyclesForPointSet(name: String) -> [Int: Path] {
 		let path: DataManager.Path = ["pointset", name, "cycles"]
-		let loaded: [Int: TurnPath]? = try? loadPath(path)
-		let cycles: [Int: TurnPath] = loaded ?? [:]
+		let loaded: [Int: Path]? = try? loadPath(path)
+		let cycles: [Int: Path] = loaded ?? [:]
 		return cycles
 	}
 
 	public func saveKnownCycles(
-		_ knownCycles: [Int: TurnPath],
+		_ knownCycles: [Int: Path],
 		pointSetName name: String
 	) throws {
 		let path: DataManager.Path = ["pointset", name, "cycles"]
