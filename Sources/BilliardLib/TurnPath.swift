@@ -4,6 +4,8 @@
 	return ((a % n) + n) % n
 }*/
 
+infix operator **: BitwiseShiftPrecedence
+
 // A Path is an element of the group of paths on the kite K.
 // It is represented as
 public struct Path:
@@ -46,16 +48,12 @@ public struct Path:
 			return .greater
 		}
 
-		public func inverse() -> Turn {
-			return Turn(degree: -degree, singularity: singularity)
-		}
-
 		public var description: String {
 			return "\(singularity):\(degree)"
 		}
 		
-		static func *(coeff: Int, turn: Turn) -> Turn {
-			return Turn(degree: turn.degree * coeff, singularity: turn.singularity)
+		static func **(turn: Turn, n: Int) -> Turn {
+			return Turn(degree: turn.degree * n, singularity: turn.singularity)
 		}
 	}
 
@@ -117,11 +115,11 @@ public struct Path:
 		if turns.count == 0 {
 			return self
 		}
-		return Path(turns: turns.reversed().map { $0.inverse() })
+		return Path(turns: turns.reversed().map { $0 ** -1 })
 	}
 
 	public func transpose() -> Path {
-		return Path(turns: turns.map { $0.inverse() })
+		return Path(turns: turns.map { $0 ** -1 })
 	}
 
 	public func pow(_ n: Int) -> Path {
@@ -148,6 +146,10 @@ public struct Path:
 		return (n % 2 == 0)
 			? rootSquared
 			: rootSquared * self
+	}
+	
+	public static func **(p: Path, n: Int) -> Path {
+		return p.pow(n)
 	}
 
 	public func degree() -> BaseValues<Int> {

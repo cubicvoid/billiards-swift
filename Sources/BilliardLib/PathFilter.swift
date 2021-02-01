@@ -54,34 +54,48 @@ public func SimpleCycleFeasibilityForPath<k: Field & Comparable & Numeric>(
 	if totals[.B0] != 0 || totals[.B1] != 0 {
 		return nil
 	}
-	var edge = DiscPathEdge(
+	var kite = KiteEmbedding(context: context)
+	/*var edge = DiscPathEdge(
 		context: context,
 		coords: BaseValues(
 			b0: Vec2<k>.origin,
 			b1: Vec2(k.one, k.zero)),
-		orientation: turnPath.initialOrientation)
+		orientation: turnPath.initialOrientation)*/
 
 	var leftBoundaries: [Vec2<k>] = []
 	var rightBoundaries: [Vec2<k>] = []
 
-	leftBoundaries.append(edge.apexCoordsForSide(.left))
-	rightBoundaries.append(edge.apexCoordsForSide(.right))
+	let initialOrientation = BaseOrientation.to(turnPath[0].singularity)
+	leftBoundaries.append(kite[initialOrientation.apexForSide(.left)])
+	rightBoundaries.append(kite[initialOrientation.apexForSide(.right)])
+	//leftBoundaries.append(edge.apexCoordsForSide(.left))
+	//rightBoundaries.append(edge.apexCoordsForSide(.right))
 	for turn in turnPath {
-		let turnSign = Sign.of(turn)!
-		guard let newEdge = edge.reversed().turnedBy(turn, angleBound: .pi)
-		else {
-			// no feasible path can cover more than pi of a disc boundary
+		// we don't use the turn coefficient directly; this is just a short
+		// circuit check, to make sure the turn isn't too big to possibly be
+		// feasible (since computing everything in that case can be very expensive)
+		let turnCoeff =
+			context.rotation[turn.singularity].pow(turn.degree, angleBound: .pi)
+		if turnCoeff == nil {
 			return nil
 		}
-		edge = newEdge
-		switch turnSign {
-			case .positive:
-				leftBoundaries.append(edge.fromCoords())
-			case .negative:
-				rightBoundaries.append(edge.fromCoords())
+		// the center (pivot) of the rotation. A positive turn means B0 on
+		// the left, B1 on the right, negative is vice versa.
+		// we might want to make this construction implicit in the API, with
+		// something like an ApexOrientation to complement the BaseOrientation?	
+		let turnCenter = kite[turn.singularity]
+		let turnSign = Sign.of(turn.degree)!
+		if (turnSign == .positive) == (turn.singularity == .B0) {
+			leftBoundaries.append(turnCenter)
+		} else {
+			rightBoundaries.append(turnCenter)
 		}
-		leftBoundaries.append(edge.apexCoordsForSide(.left))
-		rightBoundaries.append(edge.apexCoordsForSide(.right))
+		
+		// Advance the kite's position and add the exit boundaries
+		kite = kite * turn
+		let orientation = BaseOrientation.from(turn.singularity)
+		leftBoundaries.append(kite[orientation.apexForSide(.left)])
+		rightBoundaries.append(kite[orientation.apexForSide(.right)])
 	}
 	let offset = leftBoundaries.last! - leftBoundaries[0]
 
@@ -104,34 +118,34 @@ public func Thingie<k: Field & Comparable & Numeric>(
 	if turnPath.count % 2 != 0 {
 		return nil
 	}
-	var edge = DiscPathEdge(
+	/*var edge = DiscPathEdge(
 		context: context,
 		coords: BaseValues(
 			b0: Vec2<k>.origin,
 			b1: Vec2(k.one, k.zero)),
-		orientation: turnPath.initialOrientation)
+		orientation: turnPath.initialOrientation)*/
+	var kite = KiteEmbedding(context: context)
 
 	var leftBoundaries: [Vec2<k>] = []
 	var rightBoundaries: [Vec2<k>] = []
 
 	for turn in turnPath {
+		let center = kite[turn.singularity]
 		let turnSign = Sign.of(turn.degree)!
-		guard let newEdge = edge.reversed().turnedBy(turn, angleBound: .pi)
-		else {
-			// no feasible path can cover more than pi of a disc boundary
-			return nil
+		let apexOrientation = ApexOrientation.fromTurnSign(turnSign)
+		switch apexOrientation.sideForBase(turn.singularity) {
+		case .left:
+			leftBoundaries.append(center)
+		case .right:
+			rightBoundaries.append(center)
 		}
-		edge = newEdge
-		switch turnSign {
-			case .positive:
-				leftBoundaries.append(edge.fromCoords())
-			case .negative:
-				rightBoundaries.append(edge.fromCoords())
-		}
-		leftBoundaries.append(edge.apexCoordsForSide(.left))
-		rightBoundaries.append(edge.apexCoordsForSide(.right))
+		
+		kite = kite * turn
+		let baseOrientation = BaseOrientation.from(turn.singularity)
+		leftBoundaries.append(kite[baseOrientation.apexForSide(.left)])
+		rightBoundaries.append(kite[baseOrientation.apexForSide(.right)])
 	}
-	let offset = edge.fromCoords()
+	let offset = kite[Vec2(k.zero, k.zero)]
 
 	// the vector orthogonal to the offset. higher inner product with this
 	// vector means further left relative to the offset trajectory.

@@ -36,8 +36,8 @@ public func TrajectorySearchForApexCoords(
 	let apexApprox = BilliardsContext(apex: apexCoordsApprox)
 
 	func addCycleForPath(_ path: Path) {
-		let cycle = try! TurnCycle(repeatingPath: path)
-		if shortestCycle == nil || cycle < shortestCycle! {
+		let (cycle, _) = TurnCycle.repeatingPath(path)
+		if shortestCycle == nil || cycle.period < shortestCycle!.period {
 			shortestCycle = cycle
 			if !options.allowMultipleResults {
 				// We want to keep the shortest cycle,
@@ -67,7 +67,7 @@ public func TrajectorySearchForApexCoords(
 		// need to search up to the depth of the shortest path
 		// we've found.
 		if shortestCycle != nil && !options.allowMultipleResults {
-			stepCount = min(stepCount, shortestCycle!.length)
+			stepCount = min(stepCount, shortestCycle!.anyPath().count)
 		}
 		if let path = SearchTrajectory(trajectory,
 			withApex: apexApprox,

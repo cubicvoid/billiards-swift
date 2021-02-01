@@ -7,7 +7,7 @@ func reducedLength(_ path: Path) -> Int {
 	while (suffixLength+1) * 2 <= path.count {
 		let before = path[suffixLength]
 		let after = path[path.count - 1 - suffixLength]
-		if before != after.inverse() {
+		if before != after ** -1 {
 			break
 		}
 		suffixLength += 1
@@ -36,25 +36,34 @@ public struct TurnCycle: Codable, Hashable {
 		let transpose: Bool
 	}
 
-	public enum CycleError: Error {
-		case identityCycle
-		case oddLengthPath
-		case zeroLengthPath
-		case zeroTurn
-		case monotonicPath
-		case nonzeroRotation
-	}
-
 	// A turn path selected consistently but semi-arbitrarily from
-	// the set of paths generating this cycle under exponentiation
+	// the set of minimum-length paths generating this cycle under
+	// exponentiation.
 	let path: Path
 
 	private init(canonicalPath: Path) {
 		path = canonicalPath
 	}
+	
+	public var period: Int {
+		return path.count
+	}
 
-	public static func fromPath(_ path: Path) -> (TurnCycle, PathSpec) {
+	public static func repeatingPath(_ path: Path) -> (TurnCycle, PathSpec) {
+		return (TurnCycle(canonicalPath: path), PathSpec(power: 1, conjugate: Path.empty, transpose: false))
+	}
 
+	// anyPath returns (in constant time) a path generating this cycle which,
+	// among all such, has minimal length. if ApexOrientation is nonconstant on
+	// this cycle, the returned path also begins on a flip boundary.
+	// please do not assume anything more than that. we're using lex-order
+	// canonicalization right now but we want to be able to change it if
+	// we find something better.
+	//
+	// basically: anyPath is a faster alternative to pathForSpec when you don't
+	// care _which_ specific representative you're working with.
+	public func anyPath() -> Path {
+		return path
 	}
 
 	public func pathForSpec(_ s: PathSpec) -> Path {

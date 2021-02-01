@@ -1,5 +1,121 @@
 import Foundation
 
+// the "standard" coordinates for the vertices of the
+// kite are (in widdershins order):
+//   (-cot theta[.B0], 0)
+//   (0, -1)
+//   (cot theta[.B1], 0)
+//   (0, 1)
+// in particular the domain of a transformation on the kite depends
+// on the input apex.
+// A KiteEmbedding gives a complex linear map from this polygon into
+// the Euclidean plane. It is acted on by Path, (the fundamental group of
+// the kite, although it is usually safe to think of a "path" as being the
+// sequence of kite edges crossed by an unfolding) by applying the rotations
+// around v0 and v1 induced by unfolding along it. (this action preserves
+// scale.)
+public class KiteEmbedding<k: Field & Comparable> {
+	private var _ctx: BilliardsContext<k>
+	
+	// The image of the origin (0, 0) under this embedding.
+	private var _origin: Vec2<k>
+	
+	// The (complex) scale factor for this embedding.
+	private var _scale: Vec2<k>
+	
+	public init(context: BilliardsContext<k>) {
+		_ctx = context
+		_origin = Vec2(k.zero, k.zero)
+		_scale = Vec2(k.one, k.zero)
+	}
+	
+	subscript(_ s: Singularity) -> Vec2<k> {
+		switch s {
+		case .B0:
+			return _origin + _scale.complexMul(Vec2(-_ctx.r[.B0], k.zero))
+		case .B1:
+			return _origin + _scale.complexMul(Vec2(_ctx.r[.B1], k.zero))
+		case .A0:
+			return _origin + _scale.complexMul(Vec2(k.zero, k.one))
+		case .A1:
+			return _origin + _scale.complexMul(Vec2(k.zero, -k.one))
+		}
+	}
+	
+	subscript(_ b: BaseSingularity) -> Vec2<k> {
+		switch b {
+		case .B0: return self[Singularity.B0]
+		case .B1: return self[Singularity.B1]
+		}
+	}
+	
+	subscript(_ a: ApexSingularity) -> Vec2<k> {
+		switch a {
+		case .A0: return self[Singularity.A0]
+		case .A1: return self[Singularity.A1]
+		}
+	}
+	
+	subscript(_ v: Vec2<k>) -> Vec2<k> {
+		return _origin + _scale.complexMul(v)
+	}
+	
+	static func *(k: KiteEmbedding, t: Path.Turn) -> KiteEmbedding {
+		return k
+	}
+	
+	static func *(k: KiteEmbedding, p: Path) -> KiteEmbedding {
+		return k
+	}
+}
+
+//
+public extension KiteEmbedding {
+	func turnsForTrajectory(_ t: Vec3<k>) -> TurnIterator {
+		//return StepIterator(firstEdge: self, trajectory: t)
+	}
+
+	/*public class Step {
+		public let incomingEdge: DiscPathEdge
+		public let outgoingEdge: DiscPathEdge
+		public let turnDegree: Int
+
+		init(incomingEdge: DiscPathEdge, outgoingEdge: DiscPathEdge, turnDegree: Int) {
+			self.incomingEdge = incomingEdge
+			self.outgoingEdge = outgoingEdge
+			self.turnDegree = turnDegree
+		}
+	}*/
+
+	class TurnIterator: Sequence, IteratorProtocol {
+		public typealias Element = Path.Turn
+		
+		private let trajectory: Vec3<k>
+		private var currentKite: KiteEmbedding
+
+		init(firstEdge: DiscPathEdge, trajectory: Vec3<k>) {
+			self.trajectory = trajectory
+			self.currentEdge = firstEdge
+		}
+
+		public func next() -> Step? {
+			guard let turnDegree = currentEdge.nextTurnForTrajectory(trajectory)
+			else { return nil }
+			guard let nextEdge = currentEdge.reversed().turnedBy(turnDegree, angleBound: .pi)
+			else {
+				print("Error (StepIterator): turnedBy should never fail when the input came from nextTurnForTrajectory")
+				return nil
+			}
+			let step = Step(incomingEdge: currentEdge, outgoingEdge: nextEdge, turnDegree: turnDegree)
+			self.currentEdge = nextEdge
+			return step
+		}
+	}
+}
+
+
+
+
 public class DiscPathEdge<k: Field & Comparable> {
 	public var coords: BaseValues<Vec2<k>>
 	public var orientation: BaseOrientation
