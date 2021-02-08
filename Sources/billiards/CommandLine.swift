@@ -9,6 +9,21 @@ import Dispatch
 
 import BilliardLib
 
+func PathLessThan(_ path0: TurnPath, _ path1: TurnPath) -> Bool {
+	if path0.count < path1.count {
+		return true
+	}
+	if path0.count > path1.count {
+		return false
+	}
+	let comp0 = path0.monoidalComponents().count
+	let comp1 = path1.monoidalComponents().count
+	if comp0 < comp1 {
+		return true
+	}
+	return false
+}
+
 class Commands {
 	let logger: Logger
 
@@ -176,7 +191,7 @@ class PointSetCommands {
 		let indexParam: Int? = params["index"]
 
 		let pointSet = try! dataManager.loadPointSet(name: name)
-		let knownCycles: [Int: TurnCycle] =
+		let knownCycles: [Int: TurnPath] =
 			(try? dataManager.loadPath(["pointset", name, "cycles"])) ?? [:]
 
 		if let index = indexParam {
@@ -209,9 +224,9 @@ class PointSetCommands {
 
 		let fromSet = try! dataManager.loadPointSet(name: fromName)
 		let toSet = try! dataManager.loadPointSet(name: toName)
-		let fromCycles = dataManager.knownCyclesForPointSet(
+		let fromPaths = dataManager.knownCyclesForPointSet(
 			name: fromName)
-		var toCycles = dataManager.knownCyclesForPointSet(
+		var toPaths = dataManager.knownCyclesForPointSet(
 			name: toName)
 
 		let fromRadii = fromSet.elements.map(biradialFromApex)
@@ -257,47 +272,49 @@ class PointSetCommands {
 					pDistance(fromIndex: $0, toIndex: targetIndex) <
 					pDistance(fromIndex: $1, toIndex: targetIndex)
 				}.prefix(neighborCount).compactMap
-				{ (index: Int) -> TurnCycle? in
-					if let cycle = fromCycles[index] {
-						if let knownCycle = toCycles[targetIndex] {
-							if knownCycle <= cycle {
+				{ (index: Int) -> TurnPath? in
+					if let path = fromPaths[index] {
+						if let knownPath = toPaths[targetIndex] {
+							if !PathLessThan(path, knownPath) {
 								return nil
 							}
 						}
-						return cycle
+						return path
 					}
 					return nil
-				}.sorted { $0 < $1 }
+				}.sorted {
+					return PathLessThan($0, $1)
+				}
 
-				var foundCycle: TurnCycle? = nil
-				var checked: Set<TurnCycle> = []
-				for cycle in candidates {
+				var foundCycle: TurnPath? = nil
+				var checked: Set<TurnPath> = []
+				for path in candidates {
 					if shouldCancel() { return }
-					if checked.contains(cycle) { continue }
-					checked.insert(cycle)
+					if checked.contains(path) { continue }
+					checked.insert(path)
 
-					let result = SimpleCycleFeasibilityForTurnPath(
-						cycle.asTurnPath(), context: ctx)
+					let result = SimpleCycleFeasibilityForPath(
+						path, context: ctx)
 					if result?.feasible == true {
-						foundCycle = cycle
+						foundCycle = path
 						break
 					}
 				}
 				resultsQueue.sync(flags: .barrier) {
 					var caption: String
 					if let newCycle = foundCycle {
-						if let oldCycle = toCycles[targetIndex] {
+						if let oldCycle = toPaths[targetIndex] {
 							updatedCount += 1
 							caption = Magenta("updated ") +
-								"length \(oldCycle.length) -> \(newCycle.length)"
+								"length \(oldCycle.count) -> \(newCycle.count)"
 						} else {
 							foundCount += 1
 							caption = "cycle found"
 						}
-						toCycles[targetIndex] = newCycle
+						toPaths[targetIndex] = newCycle
 						toSet.printPointIndex(
 							targetIndex,
-							knownCycles: toCycles,
+							knownCycles: toPaths,
 							precision: 8,
 							caption: caption)
 					} else {
@@ -311,7 +328,7 @@ class PointSetCommands {
 			print("\(foundCount) found, \(updatedCount) updated, \(unchangedCount) unchanged")
 			print("saving...")
 			try! dataManager.saveKnownCycles(
-				toCycles, pointSetName: toName)
+				toPaths, pointSetName: toName)
 		}
 	}
 
@@ -336,14 +353,14 @@ class PointSetCommands {
 			return
 		}
 		let point = pointSet.elements[index]
-		guard let cycle = knownCycles[index]
+		guard let path = knownCycles[index]
 		else {
 			fputs("\(name)[\(index)] has no known cycle", stderr)
 			return
 		}
 		let ctx = BilliardsContext(apex: point)
-		let result = SimpleCycleFeasibilityForTurnPath(
-			cycle.asTurnPath(), context: ctx)
+		let result = SimpleCycleFeasibilityForPath(
+			path, context: ctx)
 		if result?.feasible == true {
 			print("Passed!")
 		} else {
@@ -409,7 +426,7 @@ class PointSetCommands {
 							return
 						}
 						options.maxPathLength = min(
-							options.maxPathLength, cycle.length - 1)
+							options.maxPathLength, cycle.count - 1)
 					}
 					if !cancel() {
 						activeSearches[index] = true
@@ -426,10 +443,10 @@ class PointSetCommands {
 					var caption = ""
 					if let newCycle = searchResult.shortestCycle {
 						if let oldCycle = knownCycles[index] {
-							if newCycle < oldCycle {
+							if PathLessThan(newCycle, oldCycle) {
 								knownCycles[index] = newCycle
 								caption = Magenta("found smaller cycle ") +
-									"[\(oldCycle.length) -> \(newCycle.length)]"
+									"[\(oldCycle.count) -> \(newCycle.count)]"
 								updatedCount += 1
 							} else {
 								caption = DarkGray("no change")
@@ -555,10 +572,11 @@ class PointSetCommands {
 			var rightTotal = Vec2(0.0, 0.0)
 
 			var curAngle = 0.0
-			var curOrientation = turnPath.initialOrientation
-			for (index, turn) in turnPath.turns.enumerated() {
+			//var curOrientation = turnPath.initialOrientation
+			//for (index, turn) in turnPath.turns.enumerated() {
+			for turn in turnPath {
 				let delta = Vec2(cos(curAngle), sin(curAngle))
-				let summand = (curOrientation == .forward)
+				let summand = turn.singularity == .B1//(curOrientation == .forward)
 					? delta
 					: -delta
 				var side: Side
@@ -583,20 +601,18 @@ class PointSetCommands {
 					case .right: rightTotal = rightTotal + summand
 				}
 				
-				curAngle += baseAngles[curOrientation.to] * Double(turn)
-				curOrientation = -curOrientation
+				curAngle += baseAngles[turn.singularity] * Double(turn.degree)
 			}
 			return Vec2(
 				x: leftTotal.x * rightTotal.x + leftTotal.y * rightTotal.y,
 				y: -leftTotal.x * rightTotal.y + leftTotal.y * rightTotal.x)
 		}
 
-		let turnPath = cycle.asTurnPath()
 		for py in 0..<height {
 			let y = center.y + Double(height/2 - py) * scale
 			for px in 0..<width {
 				let x = center.x + Double(px - width/2) * scale
-				let z = offsetForTurnPath(turnPath, constraint: constraint, apex: Vec2(x, y))
+				let z = offsetForTurnPath(cycle, constraint: constraint, apex: Vec2(x, y))
 				let color = colorForCoords(z)
 				image.setPixel(row: py, column: px, color: color)
 			}
@@ -676,33 +692,30 @@ class PointSetCommands {
 			var x = 0.0
 			var y = 0.0
 			var curAngle = 0.0
-			var curOrientation = turnPath.initialOrientation
-			for turn in turnPath.turns {
+			for turn in turnPath {
 				let dx = cos(curAngle)
 				let dy = sin(curAngle)
-				switch curOrientation {
-					case .forward:
+				switch turn.singularity {
+					case .B1:
 						x += dx
 						y += dy
-					case .backward:
+					case .B0:
 						x -= dx
 						y -= dy
 				}
 
-				curAngle += baseAngles[curOrientation.to] * Double(turn)
-				curOrientation = -curOrientation
+				curAngle += baseAngles[turn.singularity] * Double(turn.degree)
 			}
 			return Vec2(x, y)
 		}
 
 		print("Plotting cycle: \(cycle)")
 
-		let turnPath = cycle.asTurnPath()
 		for py in 0..<height {
 			let y = center.y + Double(height/2 - py) * scale
 			for px in 0..<width {
 				let x = center.x + Double(px - width/2) * scale
-				let z = offsetForTurnPath(turnPath, withApex: Vec2(x, y))
+				let z = offsetForTurnPath(cycle, withApex: Vec2(x, y))
 				let color = colorForCoords(z)
 				image.setPixel(row: py, column: px, color: color)
 			}
@@ -901,9 +914,9 @@ class PointSetCommands {
 
 
 class CycleStats {
-	let cycle: TurnCycle
+	let cycle: TurnPath
 	var pointCount = 0
-	init(_ cycle: TurnCycle) {
+	init(_ cycle: TurnPath) {
 		self.cycle = cycle
 	}
 }
@@ -995,7 +1008,7 @@ struct ConstraintSpec: LosslessStringConvertible {
 extension PointSet {
 	func printPointIndex(
 		_ index: Int,
-		knownCycles: [Int: TurnCycle],
+		knownCycles: [Int: TurnPath],
 		precision: Int = 6,
 		caption: String = ""
 	) {
@@ -1037,7 +1050,7 @@ extension PointSet {
 		if let cycle = knownCycles[index] {
 			print(Green("  cycle"), cycle)
 			// for now we divide cycle weight by 2 since it's always doubled
-			let weight = cycle.asTurnPath().weight().map { $0 / 2 }
+			let weight = cycle.weight().map { $0 / 2 }
 			let weightRatio = GmpRational(weight[.B1], over: UInt(weight[.B0]))
 			let weightRatioApprox = ContinuedFrac(weightRatio).approximations()
 			let approxStr = weightRatioApprox.map {$0.description}.joined(separator: " -> ")
@@ -1053,30 +1066,31 @@ extension PointSet {
 		}
 	}
 
-	func summarize(name: String, knownCycles: [Int: TurnCycle]) {
+	func summarize(name: String, knownCycles: [Int: TurnPath]) {
 		var aggregate = AggregateStats()
-		var statsTable: [TurnCycle: CycleStats] = [:]
-		for (i, cycle) in knownCycles {
-			aggregate.totalLength += cycle.length
-			aggregate.maxLength = max(aggregate.maxLength, cycle.length)
+		var statsTable: [TurnPath: CycleStats] = [:]
+		for (i, path) in knownCycles {
+			aggregate.totalLength += path.count
+			aggregate.maxLength = max(aggregate.maxLength, path.count)
 
-			let weight = cycle.asTurnPath().totalWeight()
+			let weight = path.totalWeight()
 			aggregate.totalWeight += weight
 			aggregate.maxWeight = max(aggregate.maxWeight, weight)
-
-			aggregate.totalSegments += cycle.segments.count
-			aggregate.maxSegments = max(aggregate.maxSegments, cycle.segments.count)
+ 
+			let componentCount = path.monoidalComponents().count
+			aggregate.totalSegments += componentCount
+			aggregate.maxSegments = max(aggregate.maxSegments, componentCount)
 			
 			var curStats: CycleStats
-			if let entry = statsTable[cycle] {
+			if let entry = statsTable[path] {
 				curStats = entry
-				if cycle.isSymmetric() {
+				if path.isSymmetric() {
 					aggregate.symmetricCount += 1
 					//printPointIndex(i, knownCycles: knownCycles)
 				}
 			} else {
-				curStats = CycleStats(cycle)
-				statsTable[cycle] = curStats
+				curStats = CycleStats(path)
+				statsTable[path] = curStats
 			}
 			curStats.pointCount += 1
 		}
@@ -1092,8 +1106,8 @@ extension PointSet {
 		var overflow = 0
 		for (cycle, _) in statsTable {
 			var oddCount = 0
-			for segment in cycle.segments {
-				if segment.turnDegrees.count % 2 != 0 {
+			for segment in cycle.monoidalComponents() {
+				if segment.count % 2 != 0 {
 					oddCount += 1
 				}
 			}

@@ -2,7 +2,7 @@ import Foundation
 
 public struct SimpleCycleFeasibilityResult<k: Field & Comparable & Numeric> {
 	public let apex: BilliardsContext<k>
-	public let turnPath: Path
+	public let turnPath: TurnPath
 	public let margin: k
 
 	public var feasible: Bool {
@@ -40,8 +40,10 @@ public struct SimpleCycleFeasibilityResult<k: Field & Comparable & Numeric> {
 // (meaning no explicit use of phase space): compute the coordinates of all
 // boundary vertices, project them all orthogonally to the path offset, check
 // whether the upper and lower boundaries have a positive separation.
-public func SimpleCycleFeasibilityForPath<k: Field & Comparable & Numeric>(
-	_ turnPath: Path,
+public func SimpleCycleFeasibilityForPath<
+	k: Field & Comparable & Numeric & Signed
+>(
+	_ turnPath: TurnPath,
 	context: BilliardsContext<k>
 ) -> SimpleCycleFeasibilityResult<k>? {
 	if turnPath.count == 0 || turnPath.count % 2 != 0 {
@@ -111,7 +113,8 @@ public func SimpleCycleFeasibilityForPath<k: Field & Comparable & Numeric>(
 		margin: leftHeights.min()! - rightHeights.max()!)
 }
 
-public func Thingie<k: Field & Comparable & Numeric>(
+/*
+public func Thingie<k: Field & Comparable & Numeric & Signed>(
 	_ turnPath: Path,
 	context: BilliardsContext<k>
 ) -> SimpleCycleFeasibilityResult<k>? {
@@ -158,3 +161,4 @@ public func Thingie<k: Field & Comparable & Numeric>(
 		apex: context, turnPath: turnPath,
 		margin: leftHeights.min()! - rightHeights.max()!)
 }
+*/

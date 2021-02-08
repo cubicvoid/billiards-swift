@@ -2,14 +2,14 @@ import XCTest
 
 import BilliardLib
 
-struct TurnPathComparisonTestCase {
+/*struct TurnPathComparisonTestCase {
 	let first: TurnPath
 	let second: TurnPath
 	let expectedResult: Comparison
-}
+}*/
 
 class TurnPathTests: XCTestCase {
-	func testComparison() {
+	/*func testComparison() {
 		let tests = [
 			// [10] is shorter than [1, 1]
 			TurnPathComparisonTestCase(
@@ -69,5 +69,5 @@ class TurnPathTests: XCTestCase {
 				"expected comparison of \(testCase.first) and " +
 				"\(testCase.second) to be \(testCase.expectedResult)")
 		}
-	}
+	}*/
 }

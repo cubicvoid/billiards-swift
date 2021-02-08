@@ -2,7 +2,7 @@ import Foundation
 
 // calculates the minimum length of all conjugates of the given path by
 // cancelling out any complementary prefix / suffix
-func reducedLength(_ path: Path) -> Int {
+func reducedLength(_ path: TurnPath) -> Int {
 	var suffixLength = 0
 	while (suffixLength+1) * 2 <= path.count {
 		let before = path[suffixLength]
@@ -13,6 +13,56 @@ func reducedLength(_ path: Path) -> Int {
 		suffixLength += 1
 	}
 	return path.count - 2 * suffixLength
+}
+
+// the length of the prefix / suffix of p that cancel each other out
+func OuterConjugateLength(_ p: TurnPath) -> Int {
+	var n = 0
+	while 2 * (n + 1) < p.count &&
+					p[n] == (p[p.count - 1 - n] ** -1) {
+		n += 1
+	}
+	return n
+}
+
+// returns the minimal repeating subarray of the given one, and returns
+// it with the number of times it repeats
+func Repetitions(_ turns: [TurnPath.Turn]) -> (ArraySlice<TurnPath.Turn>, Int) {
+	var testPos = 1
+	var matchLen = 0
+	while testPos + matchLen < turns.count {
+		if turns.count % testPos != 0 || turns[matchLen] != turns[testPos + matchLen] {
+			matchLen = 0
+			testPos += 1
+		} else {
+			matchLen += 1
+		}
+	}
+	return (turns[...testPos], turns.count / testPos)
+}
+
+func CanonicalRotation(_ turns: [TurnPath.Turn])
+	-> (turns: [TurnPath.Turn], degree: Int)
+{
+	#warning("unimplemented")
+	return (turns: [], degree: 0)
+}
+
+func CycleForPath(_ p: TurnPath) -> (TurnCycle, TurnCycle.PathSpec) {
+	let outerLength = OuterConjugateLength(p)
+	let outerTurns = Array(p[(p.count - 1 - outerLength)...])
+	let outer: TurnPath = TurnPath(turns: outerTurns)
+	let innerTurns = Array(p[outerLength..<(p.count - 1 - outerLength)])
+	let (turns, n) = Repetitions(innerTurns)
+	let rotation = CanonicalRotation(Array(turns))
+	let innerPath = TurnPath(turns: rotation.turns)
+	#warning("incomplete")
+	let pathSpec = TurnCycle.PathSpec(
+		power: n,
+		conjugate: TurnPath.empty,
+		transpose: false
+	)
+	return (TurnCycle(canonicalPath: innerPath), pathSpec)
 }
 
 // A TurnCycle represents the quotient of a Path by conjugation,
@@ -31,7 +81,7 @@ func reducedLength(_ path: Path) -> Int {
 public struct TurnCycle: Codable, Hashable {
 	public struct PathSpec {
 		let power: Int
-		let conjugate: Path
+		let conjugate: TurnPath
 
 		let transpose: Bool
 	}
@@ -39,9 +89,9 @@ public struct TurnCycle: Codable, Hashable {
 	// A turn path selected consistently but semi-arbitrarily from
 	// the set of minimum-length paths generating this cycle under
 	// exponentiation.
-	let path: Path
+	let path: TurnPath
 
-	private init(canonicalPath: Path) {
+	fileprivate init(canonicalPath: TurnPath) {
 		path = canonicalPath
 	}
 	
@@ -49,8 +99,8 @@ public struct TurnCycle: Codable, Hashable {
 		return path.count
 	}
 
-	public static func repeatingPath(_ path: Path) -> (TurnCycle, PathSpec) {
-		return (TurnCycle(canonicalPath: path), PathSpec(power: 1, conjugate: Path.empty, transpose: false))
+	public static func repeatingPath(_ path: TurnPath) -> (TurnCycle, PathSpec) {
+		return (TurnCycle(canonicalPath: path), PathSpec(power: 1, conjugate: TurnPath.empty, transpose: false))
 	}
 
 	// anyPath returns (in constant time) a path generating this cycle which,
@@ -62,11 +112,11 @@ public struct TurnCycle: Codable, Hashable {
 	//
 	// basically: anyPath is a faster alternative to pathForSpec when you don't
 	// care _which_ specific representative you're working with.
-	public func anyPath() -> Path {
+	public func anyPath() -> TurnPath {
 		return path
 	}
 
-	public func pathForSpec(_ s: PathSpec) -> Path {
+	public func pathForSpec(_ s: PathSpec) -> TurnPath {
 		let inner = path.pow(s.power)
 		let outer = s.conjugate.inverse() * inner * s.conjugate
 		if s.transpose {
@@ -74,6 +124,7 @@ public struct TurnCycle: Codable, Hashable {
 		}
 		return outer
 	}
+
 	//public let weight: Int
 
 	/*private init(segments: [Segment]) {
@@ -234,7 +285,7 @@ fileprivate func _ColorString(
 }
 
 fileprivate func _SubstringForPath(
-	_ turnPath: Path, signStr: String
+	_ turnPath: TurnPath, signStr: String
 ) -> String {
 	var turnStrings: [String] = []
 	for turn in turnPath {
@@ -442,7 +493,7 @@ fileprivate func CanonicallyOrderSegments(
 }
 
 
-extension TurnCycle {
+extension TurnPath {
 	public func isSymmetric() -> Bool {
 		let path = self.asPath()
 		let n = path.turns.count
@@ -555,3 +606,9 @@ public func BoundsOrSomething(cycle: TurnCycle) -> RadiusBounds {
 	return RadiusBounds(min: minRadii, max: maxRadii)
 }*/
 
+extension TurnPath {
+	public func isSymmetric() -> Bool {
+		#warning("unimplemented")
+		return false
+	}
+}

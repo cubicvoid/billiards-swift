@@ -9,7 +9,7 @@ import XCTest
 
 import BilliardLib
 
-class DiscPathEdgeTests: XCTestCase {
+/*class DiscPathEdgeTests: XCTestCase {
   
   func testApexCoordsForSide() {
     let apexCoords = Vec2(x: k(1, over: 2), y: k(1, over: 2))
@@ -70,3 +70,5 @@ class DiscPathEdgeTests: XCTestCase {
     XCTAssertEqual(edge0.nextTurnForTrajectory(t3), 1)
   }
 }
+
+*/

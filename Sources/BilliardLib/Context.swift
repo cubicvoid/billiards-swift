@@ -8,7 +8,6 @@ public class BilliardsContext<k: Field & Comparable> {
 
 	public let rotation: BaseValues<UnitPowerCache<k>>
 	
-
 	public init(radii: BaseValues<k>) {
 		self.r = radii
 		self.coords = Vec2(

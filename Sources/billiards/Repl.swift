@@ -164,7 +164,7 @@ func CycleSetPlot(dataManager: DataManager, args: [String]) {
 	switch LoadCycleSpec(args[0], dataManager: dataManager) {
 	case .success(let element):
 		print("plotting cycle: \(element.cycle)")
-		print("turn path: \(element.cycle.asTurnPath())")
+		print("turn path: \(element.cycle.anyPath())")
 		print("feasible point: \(element.metadata.feasiblePoint.asDoubleVec())")
 		PlotCycle(element.cycle)
 	case .failure(let error):

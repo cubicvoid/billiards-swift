@@ -198,7 +198,6 @@ public final class GmpRational: Codable {
 	}
 }
 
-
 extension GmpRational: Ring {
   public static var zero: GmpRational {
     return _zero
@@ -254,6 +253,18 @@ extension GmpRational: Ring {
   public func equals(_ v: GmpRational) -> Bool {
     return (__gmpq_cmp(&self.q, &v.q) == 0)
   }
+}
+
+extension GmpRational: Signed {
+	public func sign() -> Sign? {
+		if self == GmpRational.zero {
+			return nil
+		}
+		if self > GmpRational.zero {
+			return .positive
+		}
+		return .negative
+	}
 }
 
 extension GmpRational: Field {

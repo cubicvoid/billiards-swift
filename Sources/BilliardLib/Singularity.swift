@@ -74,12 +74,13 @@ public enum BaseOrientation: Int, Codable, Negatable, Hashable {
 	}
 }
 
+
 // A0 is the "upper" apex and A1 is its complex conjugate.
 public enum ApexSingularity: Hashable {
 	case A0
 	case A1
 }
-
+/*
 // ApexOrientation indicates a direction between A0 and A1, either
 // A1 to A0 (positive) or A0 to A1 (negative). As with BaseOrientation,
 // we use terms that don't connote any specific geometric constraints
@@ -163,6 +164,7 @@ public enum ApexOrientation: Int, Codable, Negatable, Hashable {
 		}
 	}
 }
+*/	
 
 public enum Singularity: Hashable {
 	case B0

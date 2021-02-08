@@ -2,15 +2,15 @@ import XCTest
 
 import BilliardLib
 
-struct InitTestCase {
+/*struct InitTestCase {
 	let turnPath: TurnPath
 	let expectedSegments: [TurnCycle.Segment]
 	let expectedError: TurnCycle.CycleError? = nil
-}
+}*/
 
 class TurnCycleTests: XCTestCase {
 	func testInit() {
-		let tests = [
+		/*let tests = [
 			InitTestCase(
 				turnPath: TurnPath(
 					initialOrientation: .forward,
@@ -35,7 +35,7 @@ class TurnCycleTests: XCTestCase {
 				"Wrong segment list when repeating turn path \(test.turnPath)")
 
 		}
-
+		*/
 	}
 	/*func testAngleBound() {
 		let testCases = [

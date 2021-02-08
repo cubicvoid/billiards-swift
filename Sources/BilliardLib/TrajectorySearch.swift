@@ -28,17 +28,16 @@ public func TrajectorySearchForApexCoords(
 	cancel: (() -> Bool)? = nil
 ) -> TrajectorySearchResult {
 	let options = opts ?? TrajectorySearchOptions()
-	var cycles: [TurnCycle] = []
-	var shortestCycle: TurnCycle? = nil
+	var cycles: [TurnPath] = []
+	var shortestCycle: TurnPath? = nil
 	let apexCoordsApprox = apexCoords.asDoubleVec()
 	//print("search(apex = \(apexCoordsApprox))")
 	let context = BilliardsContext(apex: apexCoords)
 	let apexApprox = BilliardsContext(apex: apexCoordsApprox)
 
-	func addCycleForPath(_ path: Path) {
-		let (cycle, _) = TurnCycle.repeatingPath(path)
-		if shortestCycle == nil || cycle.period < shortestCycle!.period {
-			shortestCycle = cycle
+	func addCycleForPath(_ path: TurnPath) {
+		if shortestCycle == nil || path.count < shortestCycle!.count {
+			shortestCycle = path
 			if !options.allowMultipleResults {
 				// We want to keep the shortest cycle,
 				// so reset the cycles list.
@@ -46,7 +45,7 @@ public func TrajectorySearchForApexCoords(
 			}
 		}
 		if cycles.isEmpty || options.allowMultipleResults {
-			cycles.append(cycle)
+			cycles.append(path)
 		}
 	}
 
@@ -67,7 +66,7 @@ public func TrajectorySearchForApexCoords(
 		// need to search up to the depth of the shortest path
 		// we've found.
 		if shortestCycle != nil && !options.allowMultipleResults {
-			stepCount = min(stepCount, shortestCycle!.anyPath().count)
+			stepCount = min(stepCount, shortestCycle!.count)
 		}
 		if let path = SearchTrajectory(trajectory,
 			withApex: apexApprox,
@@ -92,8 +91,8 @@ public func TrajectorySearchForApexCoords(
 }
 
 public struct TrajectorySearchResult {
-	public let cycles: [TurnCycle]
-	public let shortestCycle: TurnCycle?
+	public let cycles: [TurnPath]
+	public let shortestCycle: TurnPath?
 }
 
 public struct TrajectorySearchOptions {
@@ -106,38 +105,36 @@ public struct TrajectorySearchOptions {
 	public init() { }
 }
 
-func SearchTrajectory<k: Field & Comparable & Numeric>(
+func SearchTrajectory<k: Field & Comparable & Numeric & Signed>(
 	_ trajectory: Vec3<k>,
 	withApex context: BilliardsContext<k>,
 	forSteps stepCount: Int
-) -> Path? {
-	let startingCoords = BaseValues(
+) -> TurnPath? {
+	/*let startingCoords = BaseValues(
 		b0: Vec2<k>.origin,
-		b1: Vec2(x: k.one, y: k.zero))
-	let firstEdge: DiscPathEdge<k> = DiscPathEdge(
-		context: context, coords: startingCoords)
+		b1: Vec2(x: k.one, y: k.zero))*/
+	/*let firstEdge: DiscPathEdge<k> = DiscPathEdge(
+		context: context, coords: startingCoords)*/
+	var kite = KiteEmbedding(context: context)
 
-	var turns: [Int] = []
+	var path = TurnPath.empty
 	var angles = BaseValues(b0: 0, b1: 0)
 
-	for step in firstEdge.stepsForTrajectory(trajectory) {
-		// the current center singularity is the one that the
-		// incoming edge points to
-		let aroundSingularity = step.incomingEdge.orientation.to
-		angles[aroundSingularity] += step.turnDegree
-		turns.append(step.turnDegree)
+	for turn in kite.turnsForTrajectory(trajectory) {
+		angles[turn.singularity] += turn.degree
+		kite = kite * turn
+		path *= turn
 
-		if aroundSingularity == .B0 && angles[.B0] == 0 && angles[.B1] == 0 {
+		if angles[.B0] == 0 && angles[.B1] == 0 {
 			// possible cycle
-			let turnPath = Path(initialOrientation: .forward, turns: turns)
 			if let result = SimpleCycleFeasibilityForPath(
-				turnPath, context: context
+				path, context: context
 			) {
-				if result.feasible { return turnPath }
+				if result.feasible { return path }
 			}
 		}
 
-		if turns.count >= stepCount {
+		if path.count >= stepCount {
 			break
 		}
 	}

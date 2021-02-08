@@ -35,30 +35,60 @@ class PhasePalette {
 }
 
 
-func offsetForTurnPath(
-	_ turnPath: TurnPath,
-	//constraint: ConstraintSpec,
+/*func approxKiteForPath(
+	_ path: Path,
 	apex: Vec2<Double>
-) -> Vec2<Double> {
+) -> KiteEmbedding {
 	
 	let baseAngles = BaseValues(
 		atan2(apex.y, apex.x) * 2.0,
 		atan2(apex.y, 1.0 - apex.x) * 2.0)
 	var total = Vec2(0.0, 0.0)
 
-	 var curAngle = 0.0
-	 var curOrientation = turnPath.initialOrientation
-	 for turn in turnPath.turns {
-		 let delta = Vec2(cos(curAngle), sin(curAngle))
-		 let summand = (curOrientation == .forward)
-			 ? delta
-			 : -delta
-		total = total + summand
-		 
-		 curAngle += baseAngles[curOrientation.to] * Double(turn)
-		 curOrientation = -curOrientation
-	 }
-	return total
+	var curAngle = 0.0
+	var orientation = BaseOrientation.to(
+	for turn in path {
+		let orientation = BaseOrientation.to(turn.singularity)
+		
+	}
+}
+*/
+
+// This is not the right way to do this. we just need something that works
+// on full nil-rotation cycles while we get things building again. but soon
+// we should expand this to work on all paths and verts.
+func offsetForPath(
+	_ path: TurnPath,
+	//constraint: ConstraintSpec,
+	apex: Vec2<Double>
+) -> Vec2<Double> {
+
+	//let cot = BaseValues(apex.x / apex.y, (1.0 - apex.x) / apex.y)
+	var base = BaseValues(Vec2(0.0, 0.0), Vec2(1.0, 0.0))
+		//Vec2(-cot[.B0], 0.0),
+		//Vec2(cot[.B1], 0.0))
+	//let baseLength = cot[.B0] + cot[.B1]
+	
+	
+	let theta = BaseValues(
+		atan2(apex.y, apex.x),
+		atan2(apex.y, 1.0 - apex.x))
+
+	var curAngle = 0.0
+	for turn in path {
+		let or = BaseOrientation.from(turn.singularity)
+		curAngle += theta[or.from] * 2.0 * Double(turn.degree)
+		//let v = base[or.to] - base[or.from]
+		// the unit vector in the direction of B0 -> B1
+		let delta = Vec2(cos(curAngle), sin(curAngle))
+		switch turn.singularity {
+		case .B0:
+			base[.B1] = base[.B0] + delta
+		case .B1:
+			base[.B0] = base[.B1] - delta
+		}
+	}
+	return base[.B0]
 }
 
 func PlotCycle(_ cycle: TurnCycle) {
@@ -85,12 +115,12 @@ func PlotCycle(_ cycle: TurnCycle) {
 	let image = ImageData(width: width, height: height)
 
 
-	let turnPath = cycle.asTurnPath()
+	let turnPath = cycle.anyPath()
 	for py in 0..<height {
 		let y = center.y + Double(height/2 - py) * scale
 		for px in 0..<width {
 			let x = center.x + Double(px - width/2) * scale
-			let z = offsetForTurnPath(turnPath, apex: Vec2(x, y))
+			let z = offsetForPath(turnPath, apex: Vec2(x, y))
 			let color = palette.colorForCoords(z)
 			image.setPixel(row: py, column: px, color: color)
 		}

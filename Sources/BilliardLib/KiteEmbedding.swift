@@ -14,7 +14,7 @@ import Foundation
 // sequence of kite edges crossed by an unfolding) by applying the rotations
 // around v0 and v1 induced by unfolding along it. (this action preserves
 // scale.)
-public class KiteEmbedding<k: Field & Comparable> {
+public class KiteEmbedding<k: Field & Comparable & Signed> {
 	private var _ctx: BilliardsContext<k>
 	
 	// The image of the origin (0, 0) under this embedding.
@@ -22,6 +22,12 @@ public class KiteEmbedding<k: Field & Comparable> {
 	
 	// The (complex) scale factor for this embedding.
 	private var _scale: Vec2<k>
+	
+	private init(context: BilliardsContext<k>, origin: Vec2<k>, scale: Vec2<k>) {
+		_ctx = context
+		_origin = origin
+		_scale = scale
+	}
 	
 	public init(context: BilliardsContext<k>) {
 		_ctx = context
@@ -60,55 +66,102 @@ public class KiteEmbedding<k: Field & Comparable> {
 		return _origin + _scale.complexMul(v)
 	}
 	
-	static func *(k: KiteEmbedding, t: Path.Turn) -> KiteEmbedding {
-		return k
+	static func *(k: KiteEmbedding, t: TurnPath.Turn) -> KiteEmbedding {
+		let rot = k._ctx.rotation[t.singularity]
+		let rotationCoeff = rot.pow(t.degree)
+		let centerCoords = k[t.singularity]
+		let delta = k._origin - centerCoords
+		let newOrigin = centerCoords + delta.complexMul(rotationCoeff)
+		let newScale = k._scale.complexMul(rotationCoeff)
+		return KiteEmbedding(context: k._ctx, origin: newOrigin, scale: newScale)
 	}
 	
-	static func *(k: KiteEmbedding, p: Path) -> KiteEmbedding {
-		return k
+	static func *(k: KiteEmbedding, p: TurnPath) -> KiteEmbedding {
+		var kite = k
+		for turn in p {
+			kite = kite * turn
+		}
+		return kite
 	}
 }
 
-//
 public extension KiteEmbedding {
-	func turnsForTrajectory(_ t: Vec3<k>) -> TurnIterator {
-		//return StepIterator(firstEdge: self, trajectory: t)
+	func nextTurnForTrajectory(_ t: Vec3<k>) -> TurnPath.Turn? {
+		let a0 = self[Singularity.A0]
+		let a1 = self[Singularity.A1]
+		guard let sign0 = Sign(of: t.x * a0.x + t.y * a0.y + t.z)
+		else { return nil }
+		guard let sign1 = Sign(of: t.x * a1.x + t.y * a1.y + t.z)
+		else { return nil }
+		if sign0 == sign1 {
+			// right now we only define an action on trajectories that pass between
+			// the two apexes. we could extend it to also work on trajectories
+			// that pass between the two base vertices as well, if we ever find a
+			// reason we'd want to.
+			return nil
+		}
+		
+		// If A0 has positive orthogonal offset from the trajectory, it means
+		// A0 is on the left and the next turn will be around B1.
+		let center: BaseSingularity = (sign0 == .positive) ? .B1 : .B0
+		let centerCoords = self[center]
+		guard let innerSide: Side = PointSide(centerCoords, ofTrajectory: t)
+		else { return nil }
+		// if the center of the disc is on our left, then the disc's outer
+		// boundary will be on our right
+		let outerSide = -innerSide
+		let turnSign: Sign = (innerSide == .left) ? .positive : .negative
+
+		let entering = BaseOrientation.to(center)
+		// apex is the base point we will use to find the
+		// rest of the disc boundaries
+		let apex = entering.apexForSide(outerSide)
+		let rotation = _ctx.rotation[center]
+
+		// degreeMin and degreeMax are the lowest / highest degrees the turn could
+		// possibly be given the sign checks we've made so far
+		var degreeMin = 1
+		var degreeMax = rotation.maxTurnMagnitudeForBound(.pi)
+
+		let delta = self[apex] - centerCoords
+		while degreeMax > degreeMin {
+			let testDegree = degreeMin + (degreeMax - degreeMin) / 2
+			let rotCoeff = rotation.pow(turnSign * testDegree)
+			let point = centerCoords + delta.complexMul(rotCoeff)
+			let side = PointSide(point, ofTrajectory: t)
+			if side == innerSide {
+				degreeMax = testDegree
+			} else {
+				degreeMin = testDegree + 1
+			}
+		}
+		if degreeMax != degreeMin {
+			print("something is broken in KiteEmbedding.nextTurnForTrajectory")
+		}
+		return TurnPath.Turn(degree: degreeMin, singularity: center)
 	}
 
-	/*public class Step {
-		public let incomingEdge: DiscPathEdge
-		public let outgoingEdge: DiscPathEdge
-		public let turnDegree: Int
-
-		init(incomingEdge: DiscPathEdge, outgoingEdge: DiscPathEdge, turnDegree: Int) {
-			self.incomingEdge = incomingEdge
-			self.outgoingEdge = outgoingEdge
-			self.turnDegree = turnDegree
-		}
-	}*/
+	func turnsForTrajectory(_ t: Vec3<k>) -> TurnIterator {
+		return TurnIterator(embedding: self, trajectory: t)
+	}
 
 	class TurnIterator: Sequence, IteratorProtocol {
-		public typealias Element = Path.Turn
+		public typealias Element = TurnPath.Turn
 		
+		private var embedding: KiteEmbedding
 		private let trajectory: Vec3<k>
-		private var currentKite: KiteEmbedding
 
-		init(firstEdge: DiscPathEdge, trajectory: Vec3<k>) {
+		init(embedding: KiteEmbedding, trajectory: Vec3<k>) {
+			self.embedding = embedding
 			self.trajectory = trajectory
-			self.currentEdge = firstEdge
 		}
 
-		public func next() -> Step? {
-			guard let turnDegree = currentEdge.nextTurnForTrajectory(trajectory)
-			else { return nil }
-			guard let nextEdge = currentEdge.reversed().turnedBy(turnDegree, angleBound: .pi)
-			else {
-				print("Error (StepIterator): turnedBy should never fail when the input came from nextTurnForTrajectory")
-				return nil
+		public func next() -> TurnPath.Turn? {
+			if let turn = embedding.nextTurnForTrajectory(trajectory) {
+				embedding = embedding * turn
+				return turn
 			}
-			let step = Step(incomingEdge: currentEdge, outgoingEdge: nextEdge, turnDegree: turnDegree)
-			self.currentEdge = nextEdge
-			return step
+			return nil
 		}
 	}
 }
@@ -328,4 +381,11 @@ public func PointSide<k: Field & Comparable>(_ p: Vec2<k>, ofTrajectory t: Vec3<
 		return .left
 	}
 	return .right
+}
+
+public func PointSign<k: Field & Comparable & Signed>(
+	_ p: Vec2<k>, forTrajectory t: Vec3<k>) -> Sign?
+{
+	let offset = OffsetOfCoords(p, fromTrajectory: t)
+	return Sign(of: offset)
 }

@@ -185,6 +185,18 @@ extension Double: Ring {
 	}
 }
 
+extension Double: Signed {
+	public func sign() -> Sign? {
+		if self > 0.0 {
+			return .positive
+		}
+		if self < 0.0 {
+			return .negative
+		}
+		return nil
+	}
+}
+
 extension Double: Field {
 	public func inverse() -> Double {
 		return 1.0 / self
