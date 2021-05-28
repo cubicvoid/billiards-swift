@@ -1,69 +1,172 @@
 import Foundation
 
-// calculates the minimum length of all conjugates of the given path by
-// cancelling out any complementary prefix / suffix
-func reducedLength(_ path: TurnPath) -> Int {
-	var suffixLength = 0
-	while (suffixLength+1) * 2 <= path.count {
-		let before = path[suffixLength]
-		let after = path[path.count - 1 - suffixLength]
-		if before != after ** -1 {
-			break
+// Rotation represents a rotation of an ordered list, allowing reflections.
+// to apply a rotation to a list:
+//   if reversed is true, reverse the list
+//	 if transposed is true, negate the degree of every turn
+//   update the list of turns to turns[leftBy...] + turns[..<leftBy]
+struct Rotation {
+	let leftBy: Int
+	let reversed: Bool
+	let transposed: Bool
+	
+	static func *(r: Rotation, p: TurnPath) -> RotatedPath {
+		return RotatedPath(originalPath: p, rotation: r)
+	}
+}
+
+struct RotatedPath: Collection {
+	let originalPath: TurnPath
+	let rotation: Rotation
+
+	public var startIndex: TurnPath.Index {
+		return originalPath.startIndex
+	}
+	
+	public var endIndex: TurnPath.Index {
+		return originalPath.endIndex
+	}
+	
+	public func index(after i: Int) -> Int {
+		return originalPath.index(after: i)
+	}
+
+	subscript(_ index: Int) -> TurnPath.Turn {
+		let n = originalPath.count
+		let offset = rotation.reversed ? -index : index
+		let rawIndex = (rotation.leftBy + offset + n) % n
+		let value = originalPath[rawIndex]
+		return rotation.transposed ? value**(-1) : value
+	}
+	
+	var count: Int {
+		return originalPath.count
+	}
+	
+	static func <(p0: RotatedPath, p1: RotatedPath) -> Bool {
+		for i in 0..<p0.count {
+			switch p0[i].compareTo(p1[i]) {
+			case .less: return true
+			case .greater: return false
+			case .equal: break
+			}
 		}
-		suffixLength += 1
+		return false
 	}
-	return path.count - 2 * suffixLength
 }
 
-// the length of the prefix / suffix of p that cancel each other out
-func OuterConjugateLength(_ p: TurnPath) -> Int {
-	var n = 0
-	while 2 * (n + 1) < p.count &&
-					p[n] == (p[p.count - 1 - n] ** -1) {
-		n += 1
+
+func SignRepeatIndices(_ path: TurnPath) -> [Int] {
+	var result: [Int] = [];
+	var prev: TurnPath.Turn? = path.last
+	for (i, turn) in path.enumerated() {
+		if (turn.degree > 0) == (prev!.degree > 0) {
+			result.append(i)
+		}
+		prev = turn
 	}
-	return n
+	return result
 }
 
-// returns the minimal repeating subarray of the given one, and returns
-// it with the number of times it repeats
-func Repetitions(_ turns: [TurnPath.Turn]) -> (ArraySlice<TurnPath.Turn>, Int) {
+// returns a consistently chosen rotation of a given reduced path (first
+// and last factors being around diff. base verts), along with the
+// rotating conjugate element, so that
+//     path = conjugate**(-1) * path * conjugate
+func CanonicalRotation(_ path: TurnPath)
+	-> (canonical: TurnPath, rotation: Rotation)
+{
+	print("CanonicalRotation(\(path))")
+	var indices = SignRepeatIndices(path)
+	if indices.count == 0 {
+		// if this is a monotonic path, then all rotations are candidates.
+		indices = Array(0..<indices.count)
+	}
+	let rotations: [Rotation] = indices.flatMap { (index: Int) in
+		return [
+			Rotation(leftBy: index, reversed: false, transposed: false),
+			Rotation(leftBy: index, reversed: false, transposed: true),
+			Rotation(leftBy: index, reversed: true, transposed: false),
+			Rotation(leftBy: index, reversed: true, transposed: true)
+		]
+	}
+	
+	var best: RotatedPath? = nil
+	for r in rotations {
+		let cur = r * path
+		if best == nil || cur < best! {
+			best = cur
+		}
+	}
+	#warning("this rotation needs to be inverted")
+	return (
+		canonical: TurnPath(turns: best!),
+		rotation: best!.rotation
+	)
+}
+
+func ExteriorConjugate(_ p: TurnPath) -> (inner: TurnPath, outer: TurnPath) {
+	var inner = p
+	var outer = TurnPath.empty
+	while inner.count > 1 && inner.first!.singularity == inner.last!.singularity {
+		let term = TurnPath(turn: inner.last!)
+		
+		outer = term * outer
+		inner = term * inner * term.inverse()
+	}
+	return (inner: inner, outer: outer)
+}
+
+// returns the minimal repeating subpath of the given one, and
+// the number of times it is repeated
+func Repetitions(_ path: TurnPath) -> (cycle: TurnPath, count: Int) {
 	var testPos = 1
 	var matchLen = 0
-	while testPos + matchLen < turns.count {
-		if turns.count % testPos != 0 || turns[matchLen] != turns[testPos + matchLen] {
+	while testPos + matchLen < path.count {
+		if path.count % testPos != 0 || path[matchLen] != path[testPos + matchLen] {
 			matchLen = 0
 			testPos += 1
 		} else {
 			matchLen += 1
 		}
 	}
-	return (turns[...testPos], turns.count / testPos)
+	if testPos == path.count {
+		return (cycle: path, count: 1)
+	}
+	return (
+		cycle: TurnPath(turns: path[..<testPos]),
+		count: path.count / testPos)
 }
 
-func CanonicalRotation(_ turns: [TurnPath.Turn])
-	-> (turns: [TurnPath.Turn], degree: Int)
-{
-	#warning("unimplemented")
-	return (turns: [], degree: 0)
-}
-
-func CycleForPath(_ p: TurnPath) -> (TurnCycle, TurnCycle.PathSpec) {
-	let outerLength = OuterConjugateLength(p)
-	let outerTurns = Array(p[(p.count - 1 - outerLength)...])
-	let outer: TurnPath = TurnPath(turns: outerTurns)
-	let innerTurns = Array(p[outerLength..<(p.count - 1 - outerLength)])
-	let (turns, n) = Repetitions(innerTurns)
-	let rotation = CanonicalRotation(Array(turns))
-	let innerPath = TurnPath(turns: rotation.turns)
-	#warning("incomplete")
+/*
+public func CycleForPath(_ p: TurnPath) -> (TurnCycle, TurnCycle.PathSpec) {
+	var (inner, outer) = ExteriorConjugate(p)
+	// now: p = outer**(-1) * inner * outer
+	let (cycle, count) = Repetitions(inner)
+	// now: p = outer**(-1) * cycle**count * outer
+	let (canonical, rotation) = CanonicalRotation(cycle)
+	// now: p = outer**(-1) * (rotation*canonical)**count * outer
+	//     = outer**(-1) * (rotation * canonical**count) * outer
+	var (a, b) = cycle.split(rotation.leftBy)
+	if rotation.transposed {
+		outer = outer.transpose()
+	}
+	if rotation.reversed {
+		outer = outer.reversed()
+	}
+	/*	inner = inner.transpose()
+	}*/
+	outer = inner.prefix(rotation.offset) * outer
+	
+	
+		//outer = innerPath.conjugateForRotation(<#T##index: Int##Int#>)
+	#warning("incomplete?")
 	let pathSpec = TurnCycle.PathSpec(
-		power: n,
-		conjugate: TurnPath.empty,
-		transpose: false
+		power: count,
+		conjugate: outer,
+		transpose: rotation.reflect
 	)
 	return (TurnCycle(canonicalPath: innerPath), pathSpec)
-}
+}*/
 
 // A TurnCycle represents the quotient of a Path by conjugation,
 // exponentiation and involution (through the homomorphism sending
@@ -93,6 +196,13 @@ public struct TurnCycle: Codable, Hashable {
 
 	fileprivate init(canonicalPath: TurnPath) {
 		path = canonicalPath
+	}
+	
+	public init(repeatingPath path: TurnPath) {
+		let (inner, _) = ExteriorConjugate(path)
+		let (cycle, _) = Repetitions(inner)
+		let (canonical, _) = CanonicalRotation(cycle)
+		self.path = canonical
 	}
 	
 	public var period: Int {

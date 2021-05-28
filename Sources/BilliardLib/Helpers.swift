@@ -1,6 +1,5 @@
 import Foundation
 //import CoreGraphics
-import BilliardLib
 
 typealias k = GmpRational
 
@@ -12,15 +11,15 @@ typealias k = GmpRational
   CGColor(red: 0.278, green: 0.467, blue: 0.572, alpha: 1.0),
   CGColor(red: 0.125, green: 0.435, blue: 0.466, alpha: 1.0),
 ]
-
-extension Vec2 where R == Double {
-  func asCGPoint() -> CGPoint {
-    return CGPoint(x: x, y: y)
+*/
+extension Vec2 where R: Numeric {
+  public func asCGPoint() -> CGPoint {
+		return CGPoint(x: x.asDouble(), y: y.asDouble())
   }
-}*/
+}
 
 extension Double {
-  func clamp(min: Double, max: Double) -> Double {
+  public func clamp(min: Double, max: Double) -> Double {
     if self <= min {
       return min
     }

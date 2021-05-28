@@ -441,7 +441,7 @@ class PointSetCommands {
 					activeSearches.removeValue(forKey: index)
 					searchResults[index] = searchResult
 					var caption = ""
-					if let newCycle = searchResult.shortestCycle {
+					if let newCycle = searchResult.shortestCycle?.anyPath() {
 						if let oldCycle = knownCycles[index] {
 							if PathLessThan(newCycle, oldCycle) {
 								knownCycles[index] = newCycle

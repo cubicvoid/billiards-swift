@@ -53,6 +53,7 @@ public class DataManager {
 
 	public func loadPath<T: Codable>(_ path: Path) throws -> T {
 		let url = urlForPath(path)
+		//print("trying to load url: \(url)")
 		let data = try Data(contentsOf: url)
 		let decoder = JSONDecoder()
 		return try decoder.decode(T.self, from: data)

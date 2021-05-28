@@ -9,6 +9,18 @@ import BilliardLib
 }*/
 
 class TurnPathTests: XCTestCase {
+	func testPaths() {
+		let a: TurnPath = TurnPath.g[.B0]
+		let b: TurnPath = TurnPath.g[.B1]
+		XCTAssertEqual(a * (a ** -1), TurnPath.empty)
+		XCTAssertEqual(a * a * a, a ** 3)
+		XCTAssertEqual((a * b).inverse(), (b ** -1) * (a ** -1))
+		XCTAssertEqual((a * b) * (b * a), a * (b ** 2) * a)
+		
+		let p = a**5 * b**3 * a**4 * b**4
+		XCTAssertEqual(p.rotatedLeftBy(1), b**3 * a**4 * b**4 * a**5)
+		XCTAssertEqual(p.rotatedLeftBy(2), a**4 * b**4 * a**5 * b**3)
+	}
 	/*func testComparison() {
 		let tests = [
 			// [10] is shorter than [1, 1]

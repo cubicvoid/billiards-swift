@@ -22,6 +22,10 @@ func RandomFlipTrajectory<k: Field & Comparable & Numeric>(apex: Vec2<k>) -> Vec
 		z: -normal.x * leftCoords.x - normal.y * leftCoords.y)
 }
 
+fileprivate func AsCycle(_ p: TurnPath) -> TurnCycle {
+	return TurnCycle.repeatingPath(p).0
+}
+
 public func TrajectorySearchForApexCoords(
 	_ apexCoords: Vec2<GmpRational>,
 	options opts: TrajectorySearchOptions? = nil,
@@ -51,8 +55,8 @@ public func TrajectorySearchForApexCoords(
 
 	if options.maxPathLength < 4 {
 		return TrajectorySearchResult(
-			cycles: cycles,
-			shortestCycle: shortestCycle)
+			cycles: cycles.map(AsCycle),
+			shortestCycle: shortestCycle.map(AsCycle))
 	}
 
 	for _ in 1...options.attemptCount {
@@ -80,19 +84,19 @@ public func TrajectorySearchForApexCoords(
 			}
 			if cycles.count > 0 && options.stopAfterSuccess {
 				return TrajectorySearchResult(
-					cycles: cycles,
-					shortestCycle: shortestCycle)
+					cycles: cycles.map(AsCycle),
+					shortestCycle: shortestCycle.map(AsCycle))
 			}
 		}
 	}
 	return TrajectorySearchResult(
-		cycles: cycles,
-		shortestCycle: shortestCycle)
+		cycles: cycles.map(AsCycle),
+		shortestCycle: shortestCycle.map(AsCycle))
 }
 
 public struct TrajectorySearchResult {
-	public let cycles: [TurnPath]
-	public let shortestCycle: TurnPath?
+	public let cycles: [TurnCycle]
+	public let shortestCycle: TurnCycle?
 }
 
 public struct TrajectorySearchOptions {

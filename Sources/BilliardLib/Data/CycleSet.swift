@@ -21,13 +21,13 @@ public struct CycleMetadata: Codable {
 
 public class CycleSet {
 	public var elements: [Element]
-	public var cycleLookup: [TurnCycle: Int]
+	public var cycleLookup: [TurnPath: Int]
 	public var idLookup: [CycleId: Int]
 	public var nextId: CycleId
 	
 	public struct Element: Codable {
 		public let id: CycleId
-		public let cycle: TurnCycle
+		public let cycle: TurnPath
 		public var metadata: CycleMetadata
 	}
 	
@@ -39,7 +39,7 @@ public class CycleSet {
 	}
 	
 	public init(elements: [Element]) {
-		var cycleLookup: [TurnCycle: Int] = [:]
+		var cycleLookup: [TurnPath: Int] = [:]
 		var idLookup: [CycleId: Int] = [:]
 		var nextId = Int64(0)
 		for (index, element) in elements.enumerated() {
@@ -55,7 +55,7 @@ public class CycleSet {
 
 	// returns true if the cycle was added to the set, false if it already
 	// exists
-	public func add(cycle: TurnCycle, feasiblePoint: Point) -> Bool {
+	public func add(cycle: TurnPath, feasiblePoint: Point) -> Bool {
 		if let index = cycleLookup[cycle] {
 			// TODO: integrate data from feasiblePoint into aggregate?
 			return false

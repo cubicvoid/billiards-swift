@@ -109,6 +109,10 @@ class BilliardsRepl {
 				CycleSetCopy(dataManager: dataManager, args: Array(words[2...]))
 			} else if words[1] == "plot" {
 				CycleSetPlot(dataManager: dataManager, args: Array(words[2...]))
+			} else if words[1] == "print" {
+				CycleSetPrint(dataManager: dataManager, args: Array(words[2...]))
+			} else if words[1] == "checkerplot" {
+				CycleSetCheckerPlot(dataManager: dataManager, args: Array(words[2...]))
 			} else {
 				fputs("cycleset: unrecognized comand \"\(words[1])\"\n", stderr)
 				return
@@ -116,6 +120,24 @@ class BilliardsRepl {
 		}
 		
 	}
+}
+
+func CycleSetPrint(dataManager: DataManager, args: [String]) {
+	let params = ScanParams(args)
+	guard let name: String = params["name"]
+	else {
+		fputs("cycleset print: expected 'name'\n", stderr)
+		return
+	}
+	guard let cycleSet = try? dataManager.loadCycleSet(name: name)
+	else {
+		fputs("cycleset print: couldn't load cycle name '\(name)'", stderr)
+		return
+	}
+	for e in cycleSet.elements {
+		print("\(e.id): \(e.cycle)")
+	}
+	
 }
 
 func CycleSetCopy(dataManager: DataManager, args: [String]) {
@@ -132,8 +154,8 @@ func CycleSetCopy(dataManager: DataManager, args: [String]) {
 	}
 
 	let pointSet = try! dataManager.loadPointSet(name: from)
-	guard let knownCycles: [Int: TurnCycle] =
-		(try? dataManager.loadPath(["pointset", from, "cycles"]))
+	guard let knownCycles: [Int: TurnPath] =
+		(try! dataManager.loadPath(["pointset", from, "cycles"]))
 	else {
 		fputs("cycleset copy: couldn't find known cycles for pointset '\(from)'\n", stderr)
 		return
@@ -163,10 +185,36 @@ func CycleSetPlot(dataManager: DataManager, args: [String]) {
 	
 	switch LoadCycleSpec(args[0], dataManager: dataManager) {
 	case .success(let element):
+		let apex = element.metadata.feasiblePoint.asDoubleVec()
 		print("plotting cycle: \(element.cycle)")
-		print("turn path: \(element.cycle.anyPath())")
-		print("feasible point: \(element.metadata.feasiblePoint.asDoubleVec())")
-		PlotCycle(element.cycle)
+		print("feasible point: \(apex)")
+		PlotCycle(element.cycle, knownApex: apex)
+	case .failure(let error):
+		print("cycleset plot: \(error.description)")
+	}
+}
+
+func CycleSetCheckerPlot(dataManager: DataManager, args: [String]) {
+	let params = ScanParams(args)
+	if params.words.count < 1 {
+		fputs("cycleset checkerplot: expected cycle\n", stderr)
+		return
+	}
+	let imageWidth: Int = params["w"] ?? 500
+	let imageHeight: Int = params["h"] ?? 500
+	let viewWidth: Int = params["vw"] ?? 3
+	let viewHeight: Int = params["vh"] ?? 3
+	
+	switch LoadCycleSpec(params.words[0], dataManager: dataManager) {
+	case .success(let element):
+
+		let apex = element.metadata.feasiblePoint
+		print("plotting cycle: \(element.cycle)")
+		print("feasible point: \(apex)")
+		//PlotCycle(element.cycle, knownApex: apex)
+		CheckerPlotCycle(element.cycle, knownApex: apex,
+			imageWidth: imageWidth, imageHeight: imageHeight,
+			viewWidth: viewWidth, viewHeight: viewHeight)
 	case .failure(let error):
 		print("cycleset plot: \(error.description)")
 	}

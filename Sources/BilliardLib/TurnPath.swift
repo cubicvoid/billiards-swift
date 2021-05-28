@@ -15,8 +15,8 @@ public struct TurnPath:
 	// The generators of the group, corresponding to widdershins
 	// rotation around B0 and clockwise rotation around B1
 	public static let g: BaseValues<TurnPath> = BaseValues(
-		b0: TurnPath(sanitizedTurns: [Turn(degree: 1, singularity: BaseSingularity.B0)]),
-		b1: TurnPath(sanitizedTurns: [Turn(degree: 1, singularity: BaseSingularity.B1)]))
+		b0: Turn(degree: 1, singularity: BaseSingularity.B0).asPath(),
+		b1: Turn(degree: 1, singularity: BaseSingularity.B1).asPath())
 	public static let empty: TurnPath = TurnPath(sanitizedTurns: [])
 	private var turns: [Turn]
 	
@@ -24,23 +24,73 @@ public struct TurnPath:
 		self.turns = sanitizedTurns
 	}
 	
-	public init(turns: [Turn]) {
+	public init<T: Sequence>(turns: T) where T.Iterator.Element == Turn {
 		self.turns = []
 		for turn in turns {
 			self *= turn
 		}
 	}
-
-	// returns the rotation in which turns[0] appears at the given index
-	public func rotatedBy(_ index: Int) -> TurnPath {
-		if index == 0 {
-			return self
+	
+	public init(turn: Turn) {
+		if turn.degree == 0 {
+			self.turns = []
+		} else {
+			self.turns = [turn]
 		}
-		let start = Mod(index, by: turns.count)
-		let split = turns.count - start
-		return TurnPath(turns: Array(turns[split...] + turns[..<split]))
 	}
 
+	public var first: Turn? {
+		return turns.first
+	}
+	
+	public var last: Turn? {
+		return turns.last
+	}
+
+	// returns the path, rotated left by the given offset. ("rotate left"
+	// means removing elements from the beginning of the path and appending
+	// them onto the end.)
+	public func rotatedLeftBy(_ offset: Int) -> TurnPath {
+		if offset == 0 {
+			return self
+		}
+		let (left, right) = split(offset)
+		return right * left
+	}
+	
+	public func prefix(_ length: Int) -> TurnPath {
+		let n = Swift.min(length, turns.count)
+		if n == 0 {
+			return TurnPath.empty
+		}
+		return TurnPath(sanitizedTurns: Array(turns[..<n]))
+	}
+	
+	public func suffix(_ length: Int) -> TurnPath {
+		let n = Swift.min(length, turns.count)
+		if n == 0 {
+			return TurnPath.empty
+		}
+		let newTurns = Array(turns[(turns.count - n)...])
+		return TurnPath(sanitizedTurns: newTurns)
+	}
+
+	// given an index in 0..<count, return paths p, q such that
+	// p.count = index, q.count = count - index, and self = p*q
+	public func split(_ index: Int) -> (TurnPath, TurnPath) {
+		return (
+			TurnPath(sanitizedTurns: Array(turns[..<index])),
+			TurnPath(sanitizedTurns: Array(turns[index...]))
+		)
+	}
+
+
+	// returns the path p such that
+	//   p**(-1) * self * p = self.rotatedLeftBy(index)
+	public func conjugateForLeftRotation(_ offset: Int) -> TurnPath {
+		return prefix(offset)
+	}
+	
 	public func inverse() -> TurnPath {
 		if turns.count == 0 {
 			return self
@@ -113,6 +163,15 @@ public struct TurnPath:
 
 		public let singularity: BaseSingularity
 		
+		public init(degree: Int, singularity: BaseSingularity) {
+			self.degree = degree
+			self.singularity = singularity
+		}
+		
+		public func asPath() -> TurnPath {
+			return TurnPath(turn: self)
+		}
+		
 		// A semi-arbitrary ordering on turns: sort first by absolute degree,
 		// then by center singularity, then by reverse sign.
 		// This ordering has no particular theoretical justification other
@@ -178,7 +237,7 @@ extension TurnPath: Collection {
 }
 
 extension TurnPath {
-	static func *=(p: inout TurnPath, t: Turn) {
+	public static func *=(p: inout TurnPath, t: Turn) {
 		if let last = p.turns.last {
 			if last.singularity == t.singularity {
 				let newDegree = last.degree + t.degree
@@ -194,19 +253,19 @@ extension TurnPath {
 		p.turns.append(t)
 	}
 	
-	static func *=(p0: inout TurnPath, p1: TurnPath) {
+	public static func *=(p0: inout TurnPath, p1: TurnPath) {
 		for turn in p1 {
 			p0 *= turn
 		}
 	}
 	
-	static func *(p: TurnPath, t: Turn) -> TurnPath {
+	public static func *(p: TurnPath, t: Turn) -> TurnPath {
 		var result = p
 		result *= t
 		return result
 	}
 	
-	static func *(p0: TurnPath, p1: TurnPath) -> TurnPath {
+	public static func *(p0: TurnPath, p1: TurnPath) -> TurnPath {
 		var result = p0
 		result *= p1
 		return result

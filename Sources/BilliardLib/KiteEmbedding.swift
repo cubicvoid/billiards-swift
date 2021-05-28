@@ -35,7 +35,7 @@ public class KiteEmbedding<k: Field & Comparable & Signed> {
 		_scale = Vec2(k.one, k.zero)
 	}
 	
-	subscript(_ s: Singularity) -> Vec2<k> {
+	public subscript(_ s: Singularity) -> Vec2<k> {
 		switch s {
 		case .B0:
 			return _origin + _scale.complexMul(Vec2(-_ctx.r[.B0], k.zero))
@@ -48,25 +48,25 @@ public class KiteEmbedding<k: Field & Comparable & Signed> {
 		}
 	}
 	
-	subscript(_ b: BaseSingularity) -> Vec2<k> {
+	public subscript(_ b: BaseSingularity) -> Vec2<k> {
 		switch b {
 		case .B0: return self[Singularity.B0]
 		case .B1: return self[Singularity.B1]
 		}
 	}
 	
-	subscript(_ a: ApexSingularity) -> Vec2<k> {
+	public subscript(_ a: ApexSingularity) -> Vec2<k> {
 		switch a {
 		case .A0: return self[Singularity.A0]
 		case .A1: return self[Singularity.A1]
 		}
 	}
 	
-	subscript(_ v: Vec2<k>) -> Vec2<k> {
+	public subscript(_ v: Vec2<k>) -> Vec2<k> {
 		return _origin + _scale.complexMul(v)
 	}
 	
-	static func *(k: KiteEmbedding, t: TurnPath.Turn) -> KiteEmbedding {
+	public static func *(k: KiteEmbedding, t: TurnPath.Turn) -> KiteEmbedding {
 		let rot = k._ctx.rotation[t.singularity]
 		let rotationCoeff = rot.pow(t.degree)
 		let centerCoords = k[t.singularity]
@@ -76,7 +76,7 @@ public class KiteEmbedding<k: Field & Comparable & Signed> {
 		return KiteEmbedding(context: k._ctx, origin: newOrigin, scale: newScale)
 	}
 	
-	static func *(k: KiteEmbedding, p: TurnPath) -> KiteEmbedding {
+	public static func *(k: KiteEmbedding, p: TurnPath) -> KiteEmbedding {
 		var kite = k
 		for turn in p {
 			kite = kite * turn
@@ -86,6 +86,11 @@ public class KiteEmbedding<k: Field & Comparable & Signed> {
 }
 
 public extension KiteEmbedding {
+	// The KiteEmbedding lives in the xy plane (represented with Vec2).
+	// Trajectories t are represented as lines on the xyz sphere, as the
+	// collection of points p with (t.x * p.x + t.y * p.y + t.z == 0),
+	// via the inclusion sending the xy plane to the sphere by setting z=1 and
+	// normalizing.
 	func nextTurnForTrajectory(_ t: Vec3<k>) -> TurnPath.Turn? {
 		let a0 = self[Singularity.A0]
 		let a1 = self[Singularity.A1]
@@ -105,13 +110,14 @@ public extension KiteEmbedding {
 		// A0 is on the left and the next turn will be around B1.
 		let center: BaseSingularity = (sign0 == .positive) ? .B1 : .B0
 		let centerCoords = self[center]
+		// is centerCoords to the left or right of the trajectory?
 		guard let innerSide: Side = PointSide(centerCoords, ofTrajectory: t)
 		else { return nil }
 		// if the center of the disc is on our left, then the disc's outer
 		// boundary will be on our right
 		let outerSide = -innerSide
 		let turnSign: Sign = (innerSide == .left) ? .positive : .negative
-
+		
 		let entering = BaseOrientation.to(center)
 		// apex is the base point we will use to find the
 		// rest of the disc boundaries
@@ -138,7 +144,7 @@ public extension KiteEmbedding {
 		if degreeMax != degreeMin {
 			print("something is broken in KiteEmbedding.nextTurnForTrajectory")
 		}
-		return TurnPath.Turn(degree: degreeMin, singularity: center)
+		return TurnPath.Turn(degree: turnSign * degreeMin, singularity: center)
 	}
 
 	func turnsForTrajectory(_ t: Vec3<k>) -> TurnIterator {

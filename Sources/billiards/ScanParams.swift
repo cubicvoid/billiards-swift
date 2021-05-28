@@ -1,9 +1,11 @@
 import Foundation
 
 class ScanParams {
-	var rawParams: [String: String]
+	let rawParams: [String: String]
+	let words: [String]	// arguments with no parameter name attached
 	init(_ args: [String]) {
 		var rawParams: [String: String] = [:]
+		var words: [String] = []
 		for arg in args {
 			if let separatorIndex = arg.firstIndex(of: ":") {
 				let key = String(arg[..<separatorIndex])
@@ -12,9 +14,12 @@ class ScanParams {
 				if key != "" {
 					rawParams[key] = value
 				}
+			} else {
+				words.append(arg)
 			}
 		}
 		self.rawParams = rawParams
+		self.words = words
 	}
 
 	subscript<T: LosslessStringConvertible>(key: String) -> T? {

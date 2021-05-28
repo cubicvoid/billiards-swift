@@ -1,7 +1,7 @@
 import Foundation
-//import CoreGraphics
+import CoreGraphics
 
-/*@discardableResult func ContextRenderToURL(
+@discardableResult public func ContextRenderToURL(
 	_ fileURL: URL, width: Int, height: Int, _ draw: (CGContext) -> Void
 ) -> Bool {
 
@@ -51,4 +51,4 @@ import Foundation
 		return false
 	}
 	return true
-}*/
+}
